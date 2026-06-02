@@ -1,0 +1,7 @@
+# ros2_occupancy_grid_ws/src/occupancy_mapping/pyproject.toml
+
+[project]
+name = "occupancy_mapping"
+version = "0.1.0"
+
+dependencies = ["mujoco", "numpy", "matplotlib"]
