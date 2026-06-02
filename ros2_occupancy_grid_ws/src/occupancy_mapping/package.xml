@@ -1,7 +1,7 @@
-<!-- ros2_occupancy_grid_ws/src/occupancy_mapping/package.xml -->
-
 <?xml version="1.0"?>
 <package format="3">
+
+  <!-- ros2_occupancy_grid_ws/src/occupancy_mapping/package.xml -->
 
   <name>occupancy_mapping</name>
   <version>0.1.0</version>
