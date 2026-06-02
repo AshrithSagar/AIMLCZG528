@@ -9,6 +9,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = ["matplotlib>=3.10.9", "mujoco>=3.9.0", "numpy>=2.4.6"]
 
+[project.scripts]
+mapping_node = "occupancy_mapping.mapping_node:main"
+
 [build-system]
 requires = ["hatchling>=1.29.0"]
 build-backend = "hatchling.build"
