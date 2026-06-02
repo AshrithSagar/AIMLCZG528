@@ -2,23 +2,21 @@
 
 from setuptools import find_packages, setup
 
-package_name = "occupancy_mapping"
-
 setup(
-    name=package_name,
+    name="occupancy_mapping",
     version="0.1.0",
     packages=find_packages(),
     data_files=[
         (
             "share/ament_index/resource_index/packages",
-            ["resource/" + package_name],
+            ["resource/occupancy_mapping"],
         ),
         (
-            "share/" + package_name,
+            "share/occupancy_mapping",
             ["package.xml"],
         ),
         (
-            "share/" + package_name + "/launch",
+            "share/occupancy_mapping/launch",
             ["launch/mapping.launch.py"],
         ),
     ],
