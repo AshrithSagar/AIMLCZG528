@@ -1,13 +1,27 @@
 <!-- ros2_occupancy_grid_ws/src/occupancy_mapping/package.xml -->
 
-<buildtool_depend>ament_python</buildtool_depend>
+<?xml version="1.0"?>
+<package format="3">
 
-<exec_depend>rclpy</exec_depend>
-<exec_depend>tf2_ros</exec_depend>
-<exec_depend>geometry_msgs</exec_depend>
-<exec_depend>nav_msgs</exec_depend>
-<exec_depend>sensor_msgs</exec_depend>
+  <name>occupancy_mapping</name>
+  <version>0.1.0</version>
 
-<export>
-  <build_type>ament_python</build_type>
-</export>
+  <description>Occupancy grid mapping demo</description>
+
+  <maintainer email="ashrithy@wilp.bits-pilani.ac.in">Ashrith Sagar</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>
