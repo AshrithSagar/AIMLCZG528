@@ -1,4 +1,4 @@
-# launch/mapping.launch.py
+# ros2_occupancy_grid_ws/src/occupancy_mapping/launch/mapping.launch.py
 
 from launch import LaunchDescription
 from launch_ros.actions import Node

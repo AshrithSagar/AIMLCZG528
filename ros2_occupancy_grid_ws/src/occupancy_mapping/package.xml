@@ -1,3 +1,5 @@
+<!-- ros2_occupancy_grid_ws/src/occupancy_mapping/package.xml -->
+
 <buildtool_depend>ament_python</buildtool_depend>
 
 <exec_depend>rclpy</exec_depend>

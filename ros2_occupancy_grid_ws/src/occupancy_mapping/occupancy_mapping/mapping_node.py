@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# occupancy_mapping/mapping_node.py
+# ros2_occupancy_grid_ws/src/occupancy_mapping/mapping_node.py
 
 import mujoco
 import numpy as np

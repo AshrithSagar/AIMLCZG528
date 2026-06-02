@@ -1,4 +1,4 @@
-# setup.py
+# ros2_occupancy_grid_ws/src/occupancy_mapping/setup.py
 
 from setuptools import find_packages, setup
 
