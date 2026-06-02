@@ -27,7 +27,7 @@ setup(
     maintainer="Ashrith Sagar",
     maintainer_email="ashrithy@wilp.bits-pilani.ac.in",
     description="Occupancy grid mapping demo",
-    license="Apache-2.0",
+    license="MIT",
     entry_points={
         "console_scripts": [
             "mapping_node = occupancy_mapping.mapping_node:main",
