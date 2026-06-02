@@ -6,9 +6,12 @@ readme = "README.md"
 authors = [
     { name = "Ashrith Sagar", email = "ashrithy@wilp.bits-pilani.ac.in" },
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = ["matplotlib>=3.10.9", "mujoco>=3.9.0", "numpy>=2.4.6"]
 
 [build-system]
 requires = ["hatchling>=1.29.0"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pybind11-stubgen>=2.5.5"]
