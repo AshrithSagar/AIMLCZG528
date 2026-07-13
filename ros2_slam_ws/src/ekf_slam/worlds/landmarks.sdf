@@ -168,11 +168,25 @@
 
       <joint name="left_wheel_joint" type="revolute">
         <parent>chassis</parent><child>left_wheel</child>
-        <axis><xyz>0 0 1</xyz><limit><lower>-1e9</lower><upper>1e9</upper></limit></axis>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1e9</lower>
+            <upper>1e9</upper>
+            <effort>1e6</effort> 
+          </limit>
+        </axis>
       </joint>
       <joint name="right_wheel_joint" type="revolute">
         <parent>chassis</parent><child>right_wheel</child>
-        <axis><xyz>0 0 1</xyz><limit><lower>-1e9</lower><upper>1e9</upper></limit></axis>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1e9</lower>
+            <upper>1e9</upper>
+            <effort>1e6</effort> 
+          </limit>
+        </axis>
       </joint>
       <joint name="caster_joint" type="fixed">
         <parent>chassis</parent><child>caster</child>
