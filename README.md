@@ -16,7 +16,11 @@ AI and ML for Robotics
    conda deactivate
 
    curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
+3. Activate
+
+   ```shell
    cd ~/AIMLCZG528
    uv venv --system-site-packages
    source .venv/bin/activate
