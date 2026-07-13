@@ -1,0 +1,89 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Plane Cell Count: 50
+      Cell Size: 1
+      Color: 160; 160; 164
+      Enabled: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Show Axes: true
+    - Class: rviz_default_plugins/Path
+      Name: GroundTruthPath
+      Topic:
+        Value: /ground_truth/path
+      Color: 0; 255; 0
+      Line Width: 0.05
+      Enabled: true
+    - Class: rviz_default_plugins/Path
+      Name: VSLAM_Path
+      Topic:
+        Value: /vslam/path
+      Color: 255; 0; 0
+      Line Width: 0.05
+      Enabled: true
+    - Class: rviz_default_plugins/PointCloud2
+      Name: SparseMap
+      Topic:
+        Value: /vslam/map_points
+      Color: 255; 255; 0
+      Size (Pixels): 4
+      Style: Flat Squares
+      Enabled: true
+    - Class: rviz_default_plugins/Image
+      Name: CameraFeatures
+      Topic:
+        Value: /features/image
+      Enabled: true
+    - Class: rviz_default_plugins/Odometry
+      Name: GroundTruthOdom
+      Topic:
+        Value: /ground_truth/odom
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.1
+      Keep: 1
+      Shape:
+        Value: Arrow
+      Color: 0; 200; 0
+      Enabled: true
+    - Class: rviz_default_plugins/Odometry
+      Name: VSLAM_Odom
+      Topic:
+        Value: /vslam/odom
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.1
+      Keep: 1
+      Shape:
+        Value: Arrow
+      Color: 200; 0; 0
+      Enabled: true
+  Global Options:
+    Fixed Frame: world
+    Background Color: 40; 40; 40
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 60
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Pitch: 1.0
+      Yaw: 0.78
+Window Geometry:
+  Height: 900
+  Width: 1600
