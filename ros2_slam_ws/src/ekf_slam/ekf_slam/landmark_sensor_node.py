@@ -30,7 +30,7 @@ Publishes:
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import PoseStamped, Twist, TransformStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
 from nav_msgs.msg import Odometry, Path
 from rclpy.node import Node
 from slam_sim_msgs.msg import LandmarkObservation, LandmarkObservationArray
@@ -175,7 +175,12 @@ class LandmarkSensorNode(Node):
             m.id = lm_id
             m.type = Marker.SPHERE
             m.action = Marker.ADD
-            m.pose.position.x, m.pose.position.y, m.pose.position.z = pos
+
+            # Cast every coordinate value explicitly to float
+            m.pose.position.x = float(pos[0])
+            m.pose.position.y = float(pos[1])
+            m.pose.position.z = float(pos[2])
+
             m.pose.orientation.w = 1.0
             m.scale.x = m.scale.y = m.scale.z = 0.3
             m.color.r, m.color.g, m.color.b, m.color.a = color
