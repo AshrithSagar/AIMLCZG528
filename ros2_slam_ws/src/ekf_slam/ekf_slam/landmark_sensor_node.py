@@ -1,31 +1,8 @@
 #!/usr/bin/env python3
 """
-landmark_sensor_node
-=====================
-Gazebo-backed replacement for the sensing half of the old
-``pybullet_landmark_sim_node``. The robot's *real* physics/motion now live
-in Gazebo; this node only adds the two things Gazebo doesn't model for us:
-
-  1. A noisy wheel-odometry estimate of the commanded (v, w), for the
-     EKF's prediction step -- deliberately corrupted, so the EKF has
-     something real to correct for. (Gazebo's own bridged odometry is
-     treated as ground truth, not fed to the EKF directly.)
-  2. A noisy range-bearing sensor against six known landmark positions
-     (must match the spheres in ``worlds/landmarks.sdf``), standing in
-     for a landmark classifier (colour-based here, could be a CNN as in
-     the ``cnn_visual_slam`` package) that has already resolved landmark
-     identity.
-
-Subscribes:
-  * ``/ground_truth/odom_raw`` (nav_msgs/Odometry) -- exact pose, from Gazebo
-  * ``/cmd_vel`` (geometry_msgs/Twist)             -- commanded velocity
-
-Publishes:
-  * ``/odom``                    (nav_msgs/Odometry)   -- noisy (v, w) for the EKF
-  * ``/landmark_observations``   (slam_sim_msgs/LandmarkObservationArray)
-  * ``/ground_truth/path``       (nav_msgs/Path)
-  * ``/ground_truth/landmarks``  (visualization_msgs/MarkerArray)
-  * ``tf: world -> base_link_gt``
+Standalone Mock Landmark Sensor Node
+===================================
+Simulates perfect kinematics internally at 10Hz without needing Gazebo.
 """
 
 import numpy as np
@@ -35,24 +12,23 @@ from nav_msgs.msg import Odometry, Path
 from rclpy.node import Node
 from slam_sim_msgs.msg import LandmarkObservation, LandmarkObservationArray
 from tf2_ros import TransformBroadcaster
-from tf_transformations import euler_from_quaternion
+from tf_transformations import quaternion_from_euler
 from visualization_msgs.msg import Marker, MarkerArray
 
-# Must match worlds/landmarks.sdf landmark poses.
 LANDMARK_CONFIGS = [
-    (0, [3, 3, 0.3], [1.0, 0.0, 0.0, 1.0], "Red"),
-    (1, [3, -3, 0.3], [0.0, 1.0, 0.0, 1.0], "Green"),
-    (2, [-3, 3, 0.3], [0.0, 0.0, 1.0, 1.0], "Blue"),
-    (3, [-3, -3, 0.3], [1.0, 1.0, 0.0, 1.0], "Yellow"),
-    (4, [0, 4, 0.3], [1.0, 0.0, 1.0, 1.0], "Magenta"),
-    (5, [4, 0, 0.3], [0.0, 1.0, 1.0, 1.0], "Cyan"),
+    (0, [3.0, 3.0, 0.3], [1.0, 0.0, 0.0, 1.0], "Red"),
+    (1, [3.0, -3.0, 0.3], [0.0, 1.0, 0.0, 1.0], "Green"),
+    (2, [-3.0, 3.0, 0.3], [0.0, 0.0, 1.0, 1.0], "Blue"),
+    (3, [-3.0, -3.0, 0.3], [1.0, 1.0, 0.0, 1.0], "Yellow"),
+    (4, [0.0, 4.0, 0.3], [1.0, 0.0, 1.0, 1.0], "Magenta"),
+    (5, [4.0, 0.0, 0.3], [0.0, 1.0, 1.0, 1.0], "Cyan"),
 ]
 
 SENSOR_RANGE_MAX = 6.0
-SENSOR_FOV = np.pi  # +-90 deg either side of heading
+SENSOR_FOV = np.pi
 
 
-class LandmarkSensorNode(Node):
+class StandaloneLandmarkSensorNode(Node):
     def __init__(self):
         super().__init__("landmark_sensor_node")
 
@@ -69,17 +45,19 @@ class LandmarkSensorNode(Node):
         self.landmark_positions = {
             lm_id: np.array(pos[:2]) for lm_id, pos, _, _ in LANDMARK_CONFIGS
         }
+
+        # Internal State Tracker (Replacing Gazebo Physics)
+        self.x, self.y, self.theta = 0.0, 0.0, 0.0
         self.last_cmd_v, self.last_cmd_w = 0.0, 0.0
         self.rng = np.random.default_rng(42)
 
         self.gt_path = Path()
         self.gt_path.header.frame_id = "world"
 
+        # Subscribers
         self.cmd_sub = self.create_subscription(Twist, "/cmd_vel", self.on_cmd_vel, 10)
-        self.gt_odom_sub = self.create_subscription(
-            Odometry, "/ground_truth/odom_raw", self.on_ground_truth_odom, 10
-        )
 
+        # Publishers
         self.odom_pub = self.create_publisher(Odometry, "/odom", 10)
         self.obs_pub = self.create_publisher(
             LandmarkObservationArray, "/landmark_observations", 10
@@ -90,25 +68,45 @@ class LandmarkSensorNode(Node):
         )
         self.tf_broadcaster = TransformBroadcaster(self)
 
-        self._publish_landmark_markers()
+        # 10Hz Sim Loop Execution Timer
+        self.dt = 0.1
+        self.timer = self.create_timer(self.dt, self.simulation_loop)
+
         self.get_logger().info(
-            f"Landmark sensor model ready with {len(self.landmark_positions)} landmarks, "
-            "waiting for Gazebo odometry..."
+            "Standalone Pure Kinematic Mock Simulator Active. Gazebo Not Required."
         )
 
     def on_cmd_vel(self, msg: Twist):
         self.last_cmd_v = msg.linear.x
         self.last_cmd_w = msg.angular.z
 
-    def on_ground_truth_odom(self, msg: Odometry):
-        stamp = msg.header.stamp
-        q = msg.pose.pose.orientation
-        _, _, theta = euler_from_quaternion([q.x, q.y, q.z, q.w])
-        x, y = msg.pose.pose.position.x, msg.pose.pose.position.y
+    def simulation_loop(self):
+        stamp = self.get_clock().now().to_msg()
 
+        # 1. Update ideal robot pose (unicycle kinematics model)
+        if abs(self.last_cmd_w) < 1e-5:
+            self.x += self.last_cmd_v * np.cos(self.theta) * self.dt
+            self.y += self.last_cmd_v * np.sin(self.theta) * self.dt
+        else:
+            self.x += (self.last_cmd_v / self.last_cmd_w) * (
+                np.sin(self.theta + self.last_cmd_w * self.dt) - np.sin(self.theta)
+            )
+            self.y -= (self.last_cmd_v / self.last_cmd_w) * (
+                np.cos(self.theta + self.last_cmd_w * self.dt) - np.cos(self.theta)
+            )
+        self.theta += self.last_cmd_w * self.dt
+
+        # Compute quaternion orientation
+        q = quaternion_from_euler(0, 0, self.theta)
+        from geometry_msgs.msg import Quaternion
+
+        orient_msg = Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
+
+        # 2. Publish Everything
         self._publish_noisy_odom(stamp)
-        self._publish_ground_truth(x, y, msg.pose.pose.orientation, stamp)
-        self._publish_observations(x, y, theta, stamp)
+        self._publish_ground_truth(self.x, self.y, orient_msg, stamp)
+        self._publish_observations(self.x, self.y, self.theta, stamp)
+        self._publish_landmark_markers()
 
     def _publish_noisy_odom(self, stamp):
         v_meas = self.last_cmd_v + self.rng.normal(0, self.odom_v_noise_std)
@@ -126,9 +124,11 @@ class LandmarkSensorNode(Node):
         pose_stamped = PoseStamped()
         pose_stamped.header.stamp = stamp
         pose_stamped.header.frame_id = "world"
-        pose_stamped.pose.position.x = x
-        pose_stamped.pose.position.y = y
+        pose_stamped.pose.position.x = float(x)
+        pose_stamped.pose.position.y = float(y)
+        pose_stamped.pose.position.z = 0.0
         pose_stamped.pose.orientation = orientation
+
         self.gt_path.header.stamp = stamp
         self.gt_path.poses.append(pose_stamped)
         self.gt_path_pub.publish(self.gt_path)
@@ -137,8 +137,9 @@ class LandmarkSensorNode(Node):
         tf_msg.header.stamp = stamp
         tf_msg.header.frame_id = "world"
         tf_msg.child_frame_id = "base_link_gt"
-        tf_msg.transform.translation.x = x
-        tf_msg.transform.translation.y = y
+        tf_msg.transform.translation.x = float(x)
+        tf_msg.transform.translation.y = float(y)
+        tf_msg.transform.translation.z = 0.0
         tf_msg.transform.rotation = orientation
         self.tf_broadcaster.sendTransform(tf_msg)
 
@@ -175,12 +176,9 @@ class LandmarkSensorNode(Node):
             m.id = lm_id
             m.type = Marker.SPHERE
             m.action = Marker.ADD
-
-            # Cast every coordinate value explicitly to float
             m.pose.position.x = float(pos[0])
             m.pose.position.y = float(pos[1])
             m.pose.position.z = float(pos[2])
-
             m.pose.orientation.w = 1.0
             m.scale.x = m.scale.y = m.scale.z = 0.3
             m.color.r, m.color.g, m.color.b, m.color.a = color
@@ -190,7 +188,7 @@ class LandmarkSensorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LandmarkSensorNode()
+    node = StandaloneLandmarkSensorNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
