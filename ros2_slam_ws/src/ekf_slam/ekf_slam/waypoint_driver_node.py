@@ -40,9 +40,7 @@ class WaypointDriverNode(Node):
         self.waypoints = deque(TOUR_WAYPOINTS)
         self.pose = None  # (x, y, theta), filled in on first odom message
 
-        self.odom_sub = self.create_subscription(
-            Odometry, "/ground_truth/odom_raw", self.on_odom, 10
-        )
+        self.odom_sub = self.create_subscription(Odometry, "/odom", self.on_odom, 10)
         self.cmd_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
         self.timer = self.create_timer(1.0 / rate_hz, self.control_step)
