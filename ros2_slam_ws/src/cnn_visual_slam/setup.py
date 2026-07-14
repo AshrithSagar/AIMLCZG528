@@ -1,6 +1,7 @@
-from setuptools import find_packages, setup
 import os
 from glob import glob
+
+from setuptools import find_packages, setup
 
 package_name = "cnn_visual_slam"
 
@@ -23,7 +24,9 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "city_sim_node = cnn_visual_slam.pybullet_city_sim_node:main",
+            "city_sim_node = cnn_visual_slam.city_sim_node:main",
+            "mock_city_sim_node = cnn_visual_slam.mock_city_sim_node:main",
+            "pybullet_city_sim_node = cnn_visual_slam.pybullet_city_sim_node:main",
             "cnn_feature_node = cnn_visual_slam.cnn_feature_node:main",
         ],
     },
