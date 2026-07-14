@@ -22,7 +22,7 @@ from collections import deque
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from tf_transformations import euler_from_quaternion
@@ -40,7 +40,9 @@ class WaypointDriverNode(Node):
         self.waypoints = deque(TOUR_WAYPOINTS)
         self.pose = None  # (x, y, theta), filled in on first odom message
 
-        self.odom_sub = self.create_subscription(Odometry, "/odom", self.on_odom, 10)
+        self.odom_sub = self.create_subscription(
+            PoseStamped, "/ekf/pose", self.on_ekf_pose, 10
+        )
         self.cmd_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
         self.timer = self.create_timer(1.0 / rate_hz, self.control_step)
@@ -48,10 +50,10 @@ class WaypointDriverNode(Node):
             "Waypoint driver ready, waiting for first odometry message..."
         )
 
-    def on_odom(self, msg: Odometry):
-        q = msg.pose.pose.orientation
+    def on_ekf_pose(self, msg: PoseStamped):
+        q = msg.pose.orientation
         _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
-        self.pose = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, yaw])
+        self.pose = np.array([msg.pose.position.x, msg.pose.position.y, yaw])
 
     def control_step(self):
         cmd = Twist()
