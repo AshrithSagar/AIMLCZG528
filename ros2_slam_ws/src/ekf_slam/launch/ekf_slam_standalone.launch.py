@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 
-def generate_description():
+def generate_launch_description():
     pkg_share = get_package_share_path("ekf_slam")
 
     # Use standard rviz configuration if package has one
