@@ -57,7 +57,7 @@ def generate_launch_description():
                 executable="cnn_feature_node",
                 name="cnn_feature_node",
                 output="screen",
-                parameters=[{"min_matches": 20}],
+                parameters=[{"min_matches": 5}],
             ),
             Node(
                 package="rviz2",
