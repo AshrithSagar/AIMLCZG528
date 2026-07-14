@@ -14,6 +14,30 @@ def generate_launch_description():
     return LaunchDescription(
         [
             Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                name="world_to_odom_bridge",
+                arguments=[
+                    "--x",
+                    "0",
+                    "--y",
+                    "0",
+                    "--z",
+                    "0",
+                    "--yaw",
+                    "0",
+                    "--pitch",
+                    "0",
+                    "--roll",
+                    "0",
+                    "--frame-id",
+                    "world",
+                    "--child-frame-id",
+                    "odom",
+                ],
+                output="screen",
+            ),
+            Node(
                 package="ekf_slam",
                 executable="landmark_sensor_node",
                 name="landmark_sensor_node",
