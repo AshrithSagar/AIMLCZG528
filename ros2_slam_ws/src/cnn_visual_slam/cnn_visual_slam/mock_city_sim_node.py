@@ -103,8 +103,26 @@ class MockCitySimNode(Node):
         info_msg = CameraInfo()
         info_msg.header.stamp = now
         info_msg.header.frame_id = "camera_link"
-        info_msg.width, info_msg.height = 320, 240
+        info_msg.width = 320
+        info_msg.height = 240
         info_msg.k = [277.0, 0.0, 160.0, 0.0, 277.0, 120.0, 0.0, 0.0, 1.0]
+        info_msg.p = [
+            277.0,
+            0.0,
+            160.0,
+            0.0,
+            0.0,
+            277.0,
+            120.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+        ]
+
+        info_msg.distortion_model = "plumb_bob"
+        info_msg.d = [0.0, 0.0, 0.0, 0.0, 0.0]
         self.info_pub.publish(info_msg)
 
         # Odom and Path publications
