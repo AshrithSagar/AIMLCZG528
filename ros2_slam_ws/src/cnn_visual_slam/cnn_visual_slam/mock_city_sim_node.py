@@ -10,6 +10,7 @@ from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry, Path
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
+from std_msgs.msg import Header
 from tf2_ros import TransformBroadcaster
 from tf_transformations import quaternion_from_euler
 
@@ -59,34 +60,41 @@ class MockCitySimNode(Node):
         dx, dy = target[0] - self.pose[0], target[1] - self.pose[1]
         distance = np.hypot(dx, dy)
 
+        # Pop the waypoint and let the physics step continue.
         if distance < 1.0:
-            self.waypoints.popleft()
-            return
+            if len(self.waypoints) > 1:
+                self.waypoints.popleft()
+                target = self.waypoints[0]
+                dx, dy = target[0] - self.pose[0], target[1] - self.pose[1]
+                distance = np.hypot(dx, dy)
+            else:
+                self.waypoints = deque(TOUR_WAYPOINTS)
 
         desired_angle = np.arctan2(dy, dx)
         angle_diff = np.arctan2(
             np.sin(desired_angle - self.pose[2]), np.cos(desired_angle - self.pose[2])
         )
 
-        vel = float(min(1.0, distance / 2.0))
-        steer = float(np.clip(angle_diff * 2.0, -1.0, 1.0))
+        vel = float(min(1.2, distance / 2.0))
+        steer = float(np.clip(angle_diff * 2.5, -1.0, 1.0))
 
         # Kinematic update
-        self.pose[2] += steer * 0.1
+        self.pose[2] += steer * self.dt
         self.pose[0] += vel * np.cos(self.pose[2]) * self.dt
         self.pose[1] += vel * np.sin(self.pose[2]) * self.dt
 
         now = self.get_clock().now().to_msg()
 
         # Generate synthetic image by shifting regional slices of the texture canvas
-        shift_x = int(self.pose[0] * 50) % 400
-        shift_y = int(self.pose[1] * 50) % 200
+        # Force a higher pixel multiplier so the visual feature node registers dynamic speed changes
+        shift_x = int(self.pose[0] * 80) % 400
+        shift_y = int(self.pose[1] * 80) % 200
         cam_frame = self.texture[
             shift_y : shift_y + 240, shift_x : shift_x + 320
         ].copy()
         cv2.putText(
             cam_frame,
-            "MOCK VSLAM MODE",
+            "MOCK VSLAM ACTIVE",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -127,12 +135,13 @@ class MockCitySimNode(Node):
 
         # Odom and Path publications
         q = quaternion_from_euler(0, 0, self.pose[2])
+
         odom = Odometry(
             header=Header(stamp=now, frame_id="world"), child_frame_id="base_link_gt"
         )
         odom.pose.pose.position.x, odom.pose.pose.position.y = (
-            self.pose[0],
-            self.pose[1],
+            float(self.pose[0]),
+            float(self.pose[1]),
         )
         (
             odom.pose.pose.orientation.x,
@@ -146,6 +155,20 @@ class MockCitySimNode(Node):
         pose_stamped = PoseStamped(header=odom.header, pose=odom.pose.pose)
         self.gt_path.poses.append(pose_stamped)
         self.gt_path_pub.publish(self.gt_path)
+
+        tf_msg = TransformStamped()
+        tf_msg.header.stamp = now
+        tf_msg.header.frame_id = "world"
+        tf_msg.child_frame_id = "base_link_gt"
+        tf_msg.transform.translation.x = float(self.pose[0])
+        tf_msg.transform.translation.y = float(self.pose[1])
+        (
+            tf_msg.transform.rotation.x,
+            tf_msg.transform.rotation.y,
+            tf_msg.transform.rotation.z,
+            tf_msg.transform.rotation.w,
+        ) = q[0], q[1], q[2], q[3]
+        self.tf_broadcaster.sendTransform(tf_msg)
 
 
 def main(args=None):
