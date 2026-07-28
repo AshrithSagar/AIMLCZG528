@@ -1,0 +1,77 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+    - Class: rviz_default_plugins/Map
+      Name: OccupancyGrid
+      Topic:
+        Value: /map
+      Enabled: true
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: AStarMarkers (orange = explored)
+      Topic:
+        Value: /astar/markers
+      Enabled: true
+    - Class: rviz_default_plugins/Path
+      Name: AStarPath
+      Topic:
+        Value: /astar/path
+      Color: 255; 165; 0
+      Line Width: 0.04
+      Enabled: true
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: RRTMarkers (purple = tree)
+      Topic:
+        Value: /rrt/markers
+      Enabled: true
+    - Class: rviz_default_plugins/Path
+      Name: RRTPath
+      Topic:
+        Value: /rrt/path
+      Color: 153; 25; 204
+      Line Width: 0.04
+      Enabled: true
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: PRMMarkers (green = roadmap)
+      Topic:
+        Value: /prm/markers
+      Enabled: true
+    - Class: rviz_default_plugins/Path
+      Name: PRMPath
+      Topic:
+        Value: /prm/path
+      Color: 0; 153; 76
+      Line Width: 0.04
+      Enabled: true
+
+  Global Options:
+    Fixed Frame: map
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Value: /goal_pose
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 12
+      Focal Point:
+        X: 5
+        Y: 5
+        Z: 0
+Window Geometry:
+  Height: 900
+  Width: 1400
