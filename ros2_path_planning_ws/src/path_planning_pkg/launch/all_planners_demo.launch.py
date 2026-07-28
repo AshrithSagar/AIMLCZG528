@@ -5,8 +5,7 @@ all three (astar=orange explored+path, rrt=purple tree, prm=green roadmap).
 
 Click one "2D Pose Estimate" (start) and one "2D Goal Pose" (goal) in RViz2
 -- all three planners subscribe to the same /initialpose and /goal_pose,
-so they all replan simultaneously on the same query. Great for a live
-"same problem, three algorithms" comparison.
+so they all replan simultaneously on the same query.
 """
 
 import os

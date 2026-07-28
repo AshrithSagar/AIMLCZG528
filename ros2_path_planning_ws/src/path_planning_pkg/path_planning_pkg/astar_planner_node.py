@@ -3,8 +3,7 @@ astar_planner_node
 ===================
 Classic grid-based A* search over the occupancy grid (8-connected,
 octile heuristic). Optimal (given the grid resolution) but explores
-a search-effort proportional to grid size -- good contrast against
-the sampling-based planners.
+a search-effort proportional to grid size.
 """
 
 import heapq

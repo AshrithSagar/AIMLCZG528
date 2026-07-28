@@ -17,9 +17,9 @@ setup(
     ],
     install_requires=["setuptools", "numpy"],
     zip_safe=True,
-    maintainer="webinar4",
-    maintainer_email="you@example.com",
-    description="Webinar 4 demo: RRT / PRM / A* path planners on an occupancy grid.",
+    maintainer="Ashrith Sagar",
+    maintainer_email="ashrithy@wilp.bits-pilani.ac.in",
+    description="RRT / PRM / A* path planners on an occupancy grid.",
     license="MIT",
     tests_require=["pytest"],
     entry_points={

@@ -2,8 +2,7 @@
 map_server_node
 ================
 Publishes a fixed demo occupancy grid on /map (latched / transient-local QoS
-so RViz2 and planner nodes started later still receive it), for the
-Webinar 4 path-planning demo (AIMLCZG528).
+so RViz2 and planner nodes started later still receive it).
 """
 
 import rclpy

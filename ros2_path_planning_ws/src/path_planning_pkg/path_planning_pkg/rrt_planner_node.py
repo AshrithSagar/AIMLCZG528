@@ -4,7 +4,7 @@ rrt_planner_node
 Rapidly-exploring Random Tree (RRT). Grows a tree from the start by
 sampling random free points and steering towards them, with goal
 biasing. Publishes the full tree (LINE_LIST marker) plus the final
-path, so you can visually contrast its "space-filling" exploration
+path for visually contrasting its "space-filling" exploration
 against A*'s grid sweep and PRM's roadmap.
 
 Live-tunable parameters (ros2 param set /rrt_planner_node <name> <value>):

@@ -1,5 +1,5 @@
 """
-Shared utilities for the Webinar 4 path-planning demo (AIMLCZG528).
+Shared utilities
 
 Holds:
 - OccupancyGridMap: thin wrapper around nav_msgs/OccupancyGrid with
@@ -11,7 +11,6 @@ Holds:
 import time
 
 import numpy as np
-import rclpy
 from geometry_msgs.msg import Point, PoseStamped, PoseWithCovarianceStamped
 from nav_msgs.msg import OccupancyGrid, Path
 from rclpy.node import Node

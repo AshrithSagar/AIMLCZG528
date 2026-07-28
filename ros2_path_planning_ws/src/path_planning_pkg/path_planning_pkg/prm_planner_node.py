@@ -4,10 +4,10 @@ prm_planner_node
 Probabilistic Roadmap (PRM). Samples N random free points once, connects
 each to its k-nearest neighbours when the connecting segment is
 collision-free, then runs Dijkstra over the resulting roadmap graph
-(start/goal are wired in as extra nodes). Good contrast against RRT:
-the roadmap is built once and can be reused / queried multiple times
-(here we rebuild per query for simplicity, which is also easy to explain
-live: "in a real system you'd cache this roadmap").
+(start/goal are wired in as extra nodes).
+
+In contrast to RRT, the roadmap is built once and can be reused / queried multiple times.
+Here we rebuild per query for simplicity; in a real system you'd cache this roadmap.
 
 Live-tunable parameters:
   num_samples   (default 300)
