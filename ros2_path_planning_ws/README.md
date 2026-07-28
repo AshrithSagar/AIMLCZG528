@@ -1,7 +1,6 @@
-# ros2_path_planning_ws
+# Path Planning
 
-Sampling-based planners (RRT, PRM)
-vs. search-based planning (A\*)\*\* on a shared occupancy grid.
+Sampling-based planners (RRT, PRM) vs. search-based planning (A\*)\*\* on a shared occupancy grid.
 
 ```plaintext
 src/path_planning_pkg/
@@ -21,10 +20,7 @@ src/path_planning_pkg/
     path_planning_all.rviz        # 3-planner comparison view
 ```
 
-The demo map is a fixed 10m x 10m grid with a narrow bottleneck corridor,
-an S-shaped detour, and a few freestanding obstacles — chosen so A\*'s
-optimal sweep, RRT's exploring tree, and PRM's roadmap all look visibly
-different on the same problem.
+The demo map is a fixed 10m x 10m grid with a narrow bottleneck corridor, an S-shaped detour, and a few freestanding obstacles — chosen so A\*'s optimal sweep, RRT's exploring tree, and PRM's roadmap all look visibly different on the same problem.
 
 ## Running each planner individually
 
@@ -40,9 +36,7 @@ In RViz2:
 
 1. Click **"2D Pose Estimate"** in the toolbar, click+drag on the map to set the **start**.
 2. Click **"2D Goal Pose"**, click+drag to set the **goal**.
-3. The planner runs automatically as soon as both are set, and republishes
-   every time you move either one — so you can drag the goal around live
-   and watch it replan.
+3. The planner runs automatically as soon as both are set, and republishes every time you move either one — so you can drag the goal around live and watch it replan.
 
 ## Running all three side-by-side
 
@@ -50,9 +44,7 @@ In RViz2:
 ros2 launch path_planning_pkg all_planners_demo.launch.py
 ```
 
-One start/goal click drives all three planners at once (orange = A\*
-explored cells + path, purple = RRT tree, green = PRM roadmap). This is
-the best view for the "compare the three" part of the talk.
+One start/goal click drives all three planners at once (orange = A\* explored cells + path, purple = RRT tree, green = PRM roadmap).
 
 ## Live-tunable parameters
 
@@ -69,5 +61,4 @@ ros2 param set /prm_planner_node connect_radius 1.0
 ros2 param set /astar_planner_node heuristic_weight 2.5
 ```
 
-After changing a parameter, just re-click **"2D Goal Pose"** (even at the
-same spot) to trigger a fresh plan with the new value.
+After changing a parameter, just re-click **"2D Goal Pose"** (even at the same spot) to trigger a fresh plan with the new value.
