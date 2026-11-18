@@ -1,0 +1,15 @@
+# Single source of truth for the lab arena.
+# Used to (1) generate the Gazebo SDF world, (2) build the /map occupancy grid,
+# (3) ray-cast ground-truth ranges for the sensor model.
+# The robot spawns at the origin facing +x; keep x in [-0.3, 2.3] and
+# y in [-2.3, 2.3] free so the UMBmark squares (CW and CCW) are collision-free.
+name: sensor_motion_world
+arena:
+  size: [6.0, 6.0]          # inner free space, metres (centred on origin)
+  wall_thickness: 0.1
+  wall_height: 0.5
+obstacles:
+  - {name: crate_nw,  center: [-1.5,  1.6], size: [0.6, 0.6], height: 0.5, rgba: [0.85, 0.33, 0.10, 1]}
+  - {name: shelf_sw,  center: [-1.8, -1.5], size: [1.0, 0.4], height: 0.5, rgba: [0.20, 0.45, 0.80, 1]}
+  - {name: pillar_e,  center: [ 2.65, 0.0], size: [0.3, 0.3], height: 0.5, rgba: [0.20, 0.65, 0.30, 1]}
+  - {name: wall_stub, center: [-0.9,  0.0], size: [0.1, 1.2], height: 0.5, rgba: [0.55, 0.35, 0.65, 1]}

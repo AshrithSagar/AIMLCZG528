@@ -1,0 +1,102 @@
+{
+  "01_scan_ideal_vs_beam_model": {
+    "short_readings_pct": 6.944444444444445,
+    "max_readings_pct": 14.444444444444443
+  },
+  "02_beam_model_pdf": {},
+  "03_likelihood_surfaces": {
+    "beam": {
+      "peak_error_m": 6.280369834735101e-16,
+      "sharpness_m": 0.03473789419072061,
+      "compute_ms": 576.8646579999768,
+      "us_per_pose": 343.16755383698796
+    },
+    "likelihood_field": {
+      "peak_error_m": 0.05590169943749419,
+      "sharpness_m": 0.07806889532837787,
+      "compute_ms": 2.4604189999877235,
+      "us_per_pose": 1.4636638905340413
+    },
+    "correlation": {
+      "peak_error_m": 0.025000000000000466,
+      "sharpness_m": 0.32388553995276204,
+      "compute_ms": 19.264028999998573,
+      "us_per_pose": 11.4598625817957
+    }
+  },
+  "04_lidar_vs_lds01": {
+    "gazebo_gaussian": {
+      "n": 10289.0,
+      "bias": -3.2981087990158394e-05,
+      "rmse": 0.009970762686150764,
+      "precision_std": 0.009970708138912269,
+      "within_spec_accuracy": 0.9996112352998348,
+      "outlier_fraction": 0.0
+    },
+    "beam_model_realistic": {
+      "n": 10289.0,
+      "bias": 0.00041387151379569637,
+      "rmse": 0.030197916769541047,
+      "precision_std": 0.030195080519683944,
+      "within_spec_accuracy": 0.9010593838079503,
+      "outlier_fraction": 0.08902711633783653
+    }
+  },
+  "05_motion_model_samples": {
+    "odometry model, \u03b1 = 0.05 (well calibrated)": {
+      "final_pos_std_m": 0.11093662557619374,
+      "final_heading_std_deg": 5.03435558821247
+    },
+    "odometry model, \u03b1 = 0.2 (Nav2 AMCL default)": {
+      "final_pos_std_m": 0.22140203157865065,
+      "final_heading_std_deg": 10.068711176424936
+    },
+    "velocity model, \u03b1 = 0.2, \u03b15 = \u03b16 = 0.02": {
+      "final_pos_std_m": 0.22202891589474244,
+      "final_heading_std_deg": 9.59712176186197
+    }
+  },
+  "06_umbmark": {
+    "calibrated": {
+      "E_max_syst_m": 0.00962446644948875,
+      "r_cw_m": 0.003144306400852305,
+      "r_ccw_m": 0.00962446644948875
+    },
+    "miscalibrated (E_d = 1.005, E_b = 1.03)": {
+      "E_max_syst_m": 0.4242647984949137,
+      "r_cw_m": 0.4242647984949137,
+      "r_ccw_m": 0.11348121093515035
+    }
+  },
+  "07_motion_model_consistency": {
+    "dead_reckoning": {
+      "ate_rmse": 0.055063427331275366,
+      "ate_max": 0.10892990984711348,
+      "rpe_trans_rmse": 0.009009658297512333,
+      "rpe_rot_rmse_deg": 1.1952101696308841,
+      "final_error": 0.10892990984711348,
+      "path_length": 8.009421255124423,
+      "drift_percent": 1.3600222335342917
+    },
+    "\u03b1 = 0.0005": {
+      "mean_nees": 14.465625708040644,
+      "coverage_95": 0.022608695652173914
+    },
+    "\u03b1 = 0.002": {
+      "mean_nees": 3.6697587998507184,
+      "coverage_95": 0.9930434782608696
+    },
+    "\u03b1 = 0.01": {
+      "mean_nees": 0.7805521608252576,
+      "coverage_95": 1.0
+    },
+    "\u03b1 = 0.05": {
+      "mean_nees": 0.20344471488901117,
+      "coverage_95": 1.0
+    },
+    "\u03b1 = 0.2  (Nav2 default)": {
+      "mean_nees": 0.11195541351753846,
+      "coverage_95": 1.0
+    }
+  }
+}

@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+<!--
+  Differential-drive mobile robot with a 2-D LiDAR (modelled on the ROBOTIS LDS-01).
+  All dimensions come from config/robot.yaml (single source of truth), which the
+  Python nodes also read.
+
+  Frames (REP-105):  map -> odom -> base_link -> {left_wheel, right_wheel, caster, lidar_link}
+  base_link sits at wheel-axle height, between the two drive wheels.
+-->
+<robot name="mobile_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="sim_gazebo" default="false" />
+  <xacro:property name="cfg"
+    value="${xacro.load_yaml('$(find mobile_bot_description)/config/robot.yaml')}" />
+
+  <xacro:property name="base" value="${cfg['base']}" />
+  <xacro:property name="wheel" value="${cfg['wheel']}" />
+  <xacro:property name="caster" value="${cfg['caster']}" />
+  <xacro:property name="lidar" value="${cfg['lidar']}" />
+  <xacro:property name="calib" value="${cfg['calibration']}" />
+
+  <!-- ===================== reusable inertia macros ===================== -->
+  <xacro:macro name="box_inertial" params="m x y z *origin">
+    <inertial>
+      <xacro:insert_block name="origin" />
+      <mass value="${m}" />
+      <inertia ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0" iyy="${m*(x*x+z*z)/12}" iyz="0"
+        izz="${m*(x*x+y*y)/12}" />
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertial" params="m r h *origin">
+    <inertial>
+      <xacro:insert_block name="origin" />
+      <mass value="${m}" />
+      <inertia ixx="${m*(3*r*r+h*h)/12}" ixy="0" ixz="0" iyy="${m*(3*r*r+h*h)/12}" iyz="0"
+        izz="${m*r*r/2}" />
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="sphere_inertial" params="m r">
+    <inertial>
+      <mass value="${m}" />
+      <inertia ixx="${2*m*r*r/5}" ixy="0" ixz="0" iyy="${2*m*r*r/5}" iyz="0" izz="${2*m*r*r/5}" />
+    </inertial>
+  </xacro:macro>
+
+  <material name="body">
+    <color rgba="0.25 0.45 0.75 1" />
+  </material>
+  <material name="tyre">
+    <color rgba="0.1 0.1 0.1 1" />
+  </material>
+  <material name="sensor">
+    <color rgba="0.9 0.5 0.1 1" />
+  </material>
+
+  <!-- ============================== base =============================== -->
+  <xacro:property name="base_z" value="${base['height']/2 - wheel['radius'] + 0.03}" />
+  <link name="base_link">
+    <visual>
+      <origin xyz="-0.05 0 ${base_z}" />
+      <geometry>
+        <box size="${base['length']} ${base['width']} ${base['height']}" />
+      </geometry>
+      <material name="body" />
+    </visual>
+    <collision>
+      <origin xyz="-0.05 0 ${base_z}" />
+      <geometry>
+        <box size="${base['length']} ${base['width']} ${base['height']}" />
+      </geometry>
+    </collision>
+    <xacro:box_inertial m="${base['mass']}" x="${base['length']}" y="${base['width']}"
+      z="${base['height']}">
+      <origin xyz="-0.05 0 ${base_z}" />
+    </xacro:box_inertial>
+  </link>
+
+  <!-- ============================== wheels ============================= -->
+  <xacro:macro name="drive_wheel" params="side y_sign">
+    <link name="${side}_wheel">
+      <visual>
+        <origin rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${wheel['radius']}" length="${wheel['width']}" />
+        </geometry>
+        <material name="tyre" />
+      </visual>
+      <collision>
+        <origin rpy="${pi/2} 0 0" />
+        <geometry>
+          <cylinder radius="${wheel['radius']}" length="${wheel['width']}" />
+        </geometry>
+      </collision>
+      <xacro:cylinder_inertial m="${wheel['mass']}" r="${wheel['radius']}" h="${wheel['width']}">
+        <origin rpy="${pi/2} 0 0" />
+      </xacro:cylinder_inertial>
+    </link>
+    <joint name="${side}_wheel_joint" type="continuous">
+      <parent link="base_link" />
+      <child link="${side}_wheel" />
+      <origin xyz="0 ${y_sign*wheel['separation']/2} 0" />
+      <axis xyz="0 1 0" />
+    </joint>
+    <gazebo reference="${side}_wheel">
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:drive_wheel side="left" y_sign="1" />
+  <xacro:drive_wheel side="right" y_sign="-1" />
+
+  <!-- ============================== caster ============================= -->
+  <link name="caster">
+    <visual>
+      <geometry>
+        <sphere radius="${caster['radius']}" />
+      </geometry>
+      <material name="tyre" />
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="${caster['radius']}" />
+      </geometry>
+    </collision>
+    <xacro:sphere_inertial m="0.05" r="${caster['radius']}" />
+  </link>
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="caster" />
+    <origin xyz="${caster['x_offset']} 0 ${caster['radius'] - wheel['radius']}" />
+  </joint>
+  <gazebo reference="caster">
+    <mu1>0.0</mu1>
+    <mu2>0.0</mu2>
+  </gazebo>
+
+  <!-- ============================== LiDAR ============================== -->
+  <link name="lidar_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.035" length="0.04" />
+      </geometry>
+      <material name="sensor" />
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.035" length="0.04" />
+      </geometry>
+    </collision>
+    <xacro:cylinder_inertial m="0.1" r="0.035" h="0.04">
+      <origin />
+    </xacro:cylinder_inertial>
+  </link>
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="lidar_link" />
+    <origin xyz="0 0 ${lidar['z_offset']}" />
+  </joint>
+
+  <!-- ===================== Gazebo (gz-sim Harmonic) ===================== -->
+  <xacro:if value="$(arg sim_gazebo)">
+    <gazebo reference="lidar_link">
+      <sensor name="lidar" type="gpu_lidar">
+        <topic>scan</topic>
+        <gz_frame_id>lidar_link</gz_frame_id>
+        <update_rate>${lidar['rate_hz']}</update_rate>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>${lidar['samples']}</samples>
+              <resolution>1</resolution>
+              <min_angle>${-pi}</min_angle>
+              <max_angle>${pi}</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>${lidar['range_min']}</min>
+            <max>${lidar['range_max']}</max>
+            <resolution>0.01</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>${lidar['noise_stddev']}</stddev>
+          </noise>
+        </lidar>
+      </sensor>
+    </gazebo>
+
+    <gazebo>
+      <!-- Wheel odometry. wheel_separation is deliberately the *believed* value
+           (physical / E_b), so a non-unit baseline_ratio produces UMBmark-style
+           systematic odometry error. -->
+      <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+        <left_joint>left_wheel_joint</left_joint>
+        <right_joint>right_wheel_joint</right_joint>
+        <wheel_separation>${wheel['separation'] / calib['baseline_ratio']}</wheel_separation>
+        <wheel_radius>${wheel['radius']}</wheel_radius>
+        <odom_publish_frequency>${cfg['odometry']['rate_hz']}</odom_publish_frequency>
+        <topic>cmd_vel</topic>
+        <odom_topic>odom</odom_topic>
+        <tf_topic>tf</tf_topic>
+        <frame_id>odom</frame_id>
+        <child_frame_id>base_link</child_frame_id>
+      </plugin>
+
+      <!-- Ground truth: the simulator's own knowledge of where the robot is. -->
+      <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+        <odom_frame>map</odom_frame>
+        <robot_base_frame>base_link</robot_base_frame>
+        <odom_topic>ground_truth/odom</odom_topic>
+        <tf_topic>ground_truth/tf</tf_topic>
+        <odom_publish_frequency>${cfg['odometry']['rate_hz']}</odom_publish_frequency>
+        <dimensions>2</dimensions>
+      </plugin>
+
+      <plugin filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
+        <topic>joint_states</topic>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+</robot>

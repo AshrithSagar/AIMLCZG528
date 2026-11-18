@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>sensor_motion_lab</name>
+  <version>0.1.0</version>
+  <description>Webinar 1 (AIMLCZG528): probabilistic sensor and motion models in ROS 2, with
+    evaluation against standard benchmarks (UMBmark, TUM ATE/RPE, Nav2 AMCL defaults, LDS-01 datasheet).</description>
+  <maintainer email="ashrithy@wilp.bits-pilani.ac.in">Ashrith Sagar</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>mobile_bot_description</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <!-- Only needed for sim:=gazebo -->
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

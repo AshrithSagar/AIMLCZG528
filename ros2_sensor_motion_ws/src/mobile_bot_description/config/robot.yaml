@@ -1,0 +1,32 @@
+# Robot + sensor parameters. Read by the URDF (xacro.load_yaml) AND by the
+# Python nodes, so geometry is defined exactly once.
+base:
+  length: 0.40
+  width: 0.30
+  height: 0.12
+  mass: 4.0
+wheel:
+  radius: 0.05
+  width: 0.03
+  separation: 0.36          # nominal track width (m)
+  mass: 0.3
+caster:
+  radius: 0.025
+  x_offset: -0.15
+lidar:                       # modelled on the ROBOTIS LDS-01 (TurtleBot3)
+  z_offset: 0.12            # lidar origin above base_link (axle height)
+  samples: 360
+  range_min: 0.12
+  range_max: 3.5
+  rate_hz: 5.0
+  noise_stddev: 0.01
+odometry:
+  rate_hz: 50.0
+# Systematic odometry errors (Borenstein's E_d, E_b). 1.0 = perfectly calibrated.
+#   kinematic sim : both used.
+#   gazebo        : baseline_ratio is applied by giving the DiffDrive plugin a
+#                   *wrong* wheel_separation (= physical / baseline_ratio),
+#                   so its odometry is biased exactly like a miscalibrated robot.
+calibration:
+  diameter_ratio: 1.0
+  baseline_ratio: 1.0
