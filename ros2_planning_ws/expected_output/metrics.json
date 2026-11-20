@@ -1,0 +1,96 @@
+{
+  "system": {
+    "cpu_count": 2,
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39"
+  },
+  "queries": 30,
+  "static": {
+    "astar": {
+      "success_rate": 1.0,
+      "ms_mean": 3.981368000010358,
+      "work_mean": 414.0,
+      "length_ratio_median": 1.070427966578284,
+      "length_ratio_max": 1.159790444072574,
+      "min_clearance_m_median": 0.448606797749979,
+      "turning_deg_median": 292.5000000000032
+    },
+    "dstar_lite": {
+      "success_rate": 1.0,
+      "ms_mean": 63.85437256666743,
+      "work_mean": 378.8,
+      "length_ratio_median": 1.070427966578284,
+      "length_ratio_max": 1.159790444072574,
+      "min_clearance_m_median": 0.448606797749979,
+      "turning_deg_median": 202.5000000000019
+    },
+    "ga": {
+      "success_rate": 1.0,
+      "ms_mean": 679.1498260666763,
+      "work_mean": 4543.0,
+      "length_ratio_median": 1.0,
+      "length_ratio_max": 1.3509703128392376,
+      "min_clearance_m_median": 0.3952562418976664,
+      "turning_deg_median": 14.755577518403141
+    },
+    "ga_seeded": {
+      "success_rate": 1.0,
+      "ms_mean": 647.12903730001,
+      "work_mean": 4297.0,
+      "length_ratio_median": 1.0,
+      "length_ratio_max": 1.0433576293716649,
+      "min_clearance_m_median": 0.35000000000000003,
+      "turning_deg_median": 18.42422880318217
+    },
+    "astar+shortcut": {
+      "success_rate": 1.0,
+      "ms_mean": 3.8818422333254907,
+      "work_mean": 414.0,
+      "length_ratio_median": 1.0,
+      "length_ratio_max": 1.0,
+      "min_clearance_m_median": 0.28284271247461906,
+      "turning_deg_median": 17.099452739235197
+    }
+  },
+  "dynamic": {
+    "static_plan": {
+      "success_rate": 1.0,
+      "collisions": 3.0,
+      "walked_into_while_stopped": 2.0,
+      "time_to_goal_s": 20.03750000000015,
+      "min_gap_m": -0.4339084126863815,
+      "replans": 0.0,
+      "ms_per_replan": 0.0,
+      "ms_per_replan_max": 0.0
+    },
+    "astar": {
+      "success_rate": 1.0,
+      "collisions": 0.0,
+      "walked_into_while_stopped": 1.0,
+      "time_to_goal_s": 29.612500000000225,
+      "min_gap_m": -0.08911213903326581,
+      "replans": 49.0,
+      "ms_per_replan": 3.1263028163266426,
+      "ms_per_replan_max": 8.857117000161452
+    },
+    "dstar_lite": {
+      "success_rate": 1.0,
+      "collisions": 0.0,
+      "walked_into_while_stopped": 1.0,
+      "time_to_goal_s": 29.350000000000215,
+      "min_gap_m": -0.0814148010039859,
+      "replans": 43.0,
+      "ms_per_replan": 123.41340174417954,
+      "ms_per_replan_max": 415.1852659999804
+    },
+    "ga_seeded": {
+      "success_rate": 1.0,
+      "collisions": 2.0,
+      "walked_into_while_stopped": 1.0,
+      "time_to_goal_s": 34.15000000000003,
+      "min_gap_m": -0.08293855702345626,
+      "replans": 76.0,
+      "ms_per_replan": 306.45409411842576,
+      "ms_per_replan_max": 1073.5741400001189
+    }
+  }
+}

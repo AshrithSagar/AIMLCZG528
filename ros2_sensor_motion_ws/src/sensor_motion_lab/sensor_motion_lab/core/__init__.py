@@ -41,6 +41,7 @@ from .sensing import (
     Scan,
 )
 from .simulation import (
+    CircleObstacles,
     AvoidanceConfig,
     ReactiveAvoidanceController,
     KinematicRobot,
@@ -61,6 +62,6 @@ __all__ = [
     "OdometryControl", "OdometryMotionModel", "VelocityControl", "VelocityMotionModel",
     "BeamModelParams", "BeamRangeFinderModel", "CorrelationModel", "CorrelationParams", "LikelihoodFieldModel", "LikelihoodFieldParams", "RangeSensorModel",
     "RangeSensorModelFactory", "Scan",
-    "AvoidanceConfig", "ReactiveAvoidanceController", "KinematicRobot", "LidarConfig", "SimulatedLidar", "SlipNoise", "SquarePathConfig", "SquarePathController",
+    "AvoidanceConfig", "CircleObstacles", "ReactiveAvoidanceController", "KinematicRobot", "LidarConfig", "SimulatedLidar", "SlipNoise", "SquarePathConfig", "SquarePathController",
     "GridMap", "GridRasterizer", "RayCaster", "SdfWorldWriter", "WorldSpec",
 ]

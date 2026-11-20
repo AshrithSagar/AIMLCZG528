@@ -224,3 +224,10 @@ def test_avoidance_turns_only_when_blocked() -> None:
     assert ctl.command(clear, angles) == (0.2, 0.0)
     assert ctl.command(blocked, angles) == (0.0, AvoidanceConfig().turn_rate)
     assert ctl.command(np.full(360, np.inf), angles)[0] > 0  # no returns -> keep driving
+
+
+def test_circle_obstacles_ray_hits() -> None:
+    from sensor_motion_lab.core import CircleObstacles
+
+    r = CircleObstacles.ranges(Pose2D(0, 0, 0), np.array([0.0, math.pi / 2]), np.array([[2.0, 0.0]]), 0.25, 3.5)
+    assert r[0] == pytest.approx(1.75) and math.isinf(r[1])

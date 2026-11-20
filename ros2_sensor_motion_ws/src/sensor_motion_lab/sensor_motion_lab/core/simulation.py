@@ -199,3 +199,27 @@ class ReactiveAvoidanceController:
         if self.front_distance(ranges, angles) <= self.config.threshold:
             return 0.0, self.config.turn_rate
         return self.config.forward_speed, 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Moving obstacles seen by the LiDAR (Webinar 4)                              #
+# --------------------------------------------------------------------------- #
+class CircleObstacles:
+    """Analytic ray / circle intersection for moving round obstacles (e.g. people)."""
+
+    @staticmethod
+    def ranges(pose: Pose2D, angles: FloatArray, centers: FloatArray, radius: float, range_max: float) -> FloatArray:
+        """Distance along every beam to the nearest circle (inf if none within range)."""
+        out = np.full(angles.shape, np.inf)
+        if centers.size == 0:
+            return out
+        d = np.stack((np.cos(pose.theta + angles), np.sin(pose.theta + angles)), axis=1)  # (B, 2)
+        rel = centers - np.array([pose.x, pose.y])  # (C, 2)
+        b = d @ rel.T  # projection of each centre on each beam, (B, C)
+        c = np.sum(rel**2, axis=1) - radius**2  # (C,)
+        disc = b**2 - c
+        t = b - np.sqrt(np.where(disc >= 0, disc, np.nan))
+        t = np.where((disc >= 0) & (t > 0), t, np.inf)
+        out = t.min(axis=1)
+        out[out > range_max] = np.inf
+        return out

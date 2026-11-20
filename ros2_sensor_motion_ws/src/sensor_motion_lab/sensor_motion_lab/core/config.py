@@ -43,3 +43,22 @@ class RobotConfig:
             lidar_z=float(li["z_offset"]),
             odom_rate_hz=float(raw.get("odometry", {}).get("rate_hz", 50.0)),
         )
+
+
+class DescriptionConfig:
+    """Locates `mobile_bot_description/config` (installed share/ first, then the source tree).
+
+    Shared by the overlay workspaces (W2, W4) so they all read the same world.yaml / robot.yaml.
+    """
+
+    @staticmethod
+    def locate() -> Path:
+        try:
+            from ament_index_python.packages import get_package_share_directory  # noqa: PLC0415
+
+            return Path(get_package_share_directory("mobile_bot_description")) / "config"
+        except Exception:  # noqa: BLE001 - not sourced: fall back to the source tree
+            cand = Path(__file__).resolve().parents[3] / "mobile_bot_description" / "config"
+            if cand.is_dir():
+                return cand
+            raise FileNotFoundError("cannot find mobile_bot_description/config (source the W1 workspace)")
