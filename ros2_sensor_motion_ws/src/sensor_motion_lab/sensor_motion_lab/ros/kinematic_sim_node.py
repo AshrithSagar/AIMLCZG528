@@ -5,6 +5,7 @@ Publishes *the same interface* as the Gazebo + ros_gz_bridge setup, so every
 downstream node works unchanged with either simulator (Liskov, in ROS form):
 
   sub  /cmd_vel             geometry_msgs/Twist
+  sub  /sim/teleport        geometry_msgs/PoseStamped  move the true pose only ("kidnapped robot")
   pub  /odom                nav_msgs/Odometry      wheel odometry (nominal geometry)
   pub  /ground_truth/odom   nav_msgs/Odometry      true pose (frame: map)
   pub  /scan                sensor_msgs/LaserScan  ray-cast + Gaussian noise
@@ -19,7 +20,7 @@ from __future__ import annotations
 
 import numpy as np
 from builtin_interfaces.msg import Time as TimeMsg
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState, LaserScan
 from tf2_ros import TransformBroadcaster
@@ -48,6 +49,8 @@ class KinematicSimNode(LabNode):
         self.cmd = Twist()
         self.last_cmd_time = self.get_clock().now()
         self.create_subscription(Twist, "/cmd_vel", self._on_cmd, 10)
+        # "Kidnap" the robot: move the true pose, leave odometry untouched (Webinar 2).
+        self.create_subscription(PoseStamped, "/sim/teleport", self._on_teleport, 10)
 
         self.odom_pub = self.create_publisher(Odometry, "/odom", 10)
         self.gt_pub = self.create_publisher(Odometry, "/ground_truth/odom", 10)
@@ -66,6 +69,10 @@ class KinematicSimNode(LabNode):
     def _on_cmd(self, msg: Twist) -> None:
         self.cmd = msg
         self.last_cmd_time = self.get_clock().now()
+
+    def _on_teleport(self, msg: PoseStamped) -> None:
+        self.sim.true_pose = RosConv.pose_from_msg(msg.pose)
+        self.get_logger().warn(f"Teleported (kidnapped) to {self.sim.true_pose}")
 
     def _step(self) -> None:
         stale = (self.get_clock().now() - self.last_cmd_time).nanoseconds * 1e-9 > self.cmd_timeout

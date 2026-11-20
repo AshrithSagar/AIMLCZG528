@@ -5,6 +5,7 @@ world_map_node — publishes the environment as ROS maps.
   /likelihood_field  nav_msgs/OccupancyGrid  (latched)   100·exp(-d²/2σ²), the "map" of the LF model
   TF  map -> odom    identity (static)                   REP-105: a localiser would own this;
                                                          here the robot starts at the map origin.
+                                                         (param publish_map_odom_tf:=false hands it over)
 """
 
 from __future__ import annotations
@@ -35,8 +36,10 @@ class WorldMapNode(LabNode):
         self.lf_pub.publish(RosConv.occupancy_grid(np.round(lf), grid.resolution,
                                                    (grid.origin_x, grid.origin_y), self.MAP_FRAME, stamp))
 
-        self.static_tf = StaticTransformBroadcaster(self)
-        self.static_tf.sendTransform(RosConv.transform(Pose2D(), self.MAP_FRAME, self.ODOM_FRAME, stamp))
+        # Disable when a localizer (MCL, grid, Nav2 AMCL) owns map -> odom (Webinar 2).
+        if self.param("publish_map_odom_tf", True):
+            self.static_tf = StaticTransformBroadcaster(self)
+            self.static_tf.sendTransform(RosConv.transform(Pose2D(), self.MAP_FRAME, self.ODOM_FRAME, stamp))
         self.get_logger().info(
             f"Published /map ({grid.width}x{grid.height} @ {resolution} m) and /likelihood_field "
             f"for world '{self.world.name}'."

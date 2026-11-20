@@ -64,6 +64,8 @@ class LabLaunchBuilder:
             DeclareLaunchArgument("sim", default_value="kinematic", choices=["kinematic", "gazebo"],
                                   description="Simulator backend."),
             DeclareLaunchArgument("rviz", default_value="true", description="Open RViz with the lab layout."),
+            DeclareLaunchArgument("map_odom_tf", default_value="true",
+                                  description="Static identity map->odom; set false when a localizer owns it."),
         ] + (extra_args or [])
         return LaunchDescription(args + [OpaqueFunction(function=self._setup, kwargs={
             "extra": extra or [], "sim": NodeSpec("kinematic_sim_node", sim_params or {})})])
@@ -77,7 +79,8 @@ class LabLaunchBuilder:
         sim_time = {"use_sim_time": gazebo}
         actions: list[Action] = [
             self._robot_state_publisher(gazebo),
-            self.node("world_map_node", sim_time),
+            self.node("world_map_node", sim_time | {
+                "publish_map_odom_tf": LaunchConfiguration("map_odom_tf").perform(context).lower() == "true"}),
             self.node("trajectory_evaluator_node", sim_time),
             Node(package="rviz2", executable="rviz2", output="log",
                  arguments=["-d", str(self.lab_share / "rviz" / "lab.rviz")],

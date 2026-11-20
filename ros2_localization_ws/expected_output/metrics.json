@@ -1,0 +1,63 @@
+{
+  "system": {
+    "cpu_count": 2,
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
+    "python": "3.13.18"
+  },
+  "scenario": {
+    "scans": 600,
+    "kidnap_t": 60.0
+  },
+  "regressor_training": {
+    "samples": 40000.0,
+    "params": 117892.0,
+    "train_seconds": 39.65062365099993,
+    "val_median_pos_err_m": 0.23228166777933582,
+    "val_p90_pos_err_m": 0.6275148508248994,
+    "val_median_heading_err_deg": 5.380003925875322,
+    "inference_us": 25.841335000222898
+  },
+  "results": {
+    "grid": {
+      "converged": 1.0,
+      "convergence_s": 0.0,
+      "tracking_rmse_m": 0.05939878836138065,
+      "tracking_heading_rmse_deg": 2.1225207558586825,
+      "recovered": 1.0,
+      "recovery_s": 0.3999999999999986,
+      "update_ms_mean": 115.70849646001157,
+      "update_ms_p95": 139.40676425003176
+    },
+    "mcl": {
+      "converged": 1.0,
+      "convergence_s": 0.0,
+      "tracking_rmse_m": 0.04101056710000172,
+      "tracking_heading_rmse_deg": 0.5380336963655077,
+      "recovered": 1.0,
+      "recovery_s": 3.0,
+      "update_ms_mean": 3.0741503666646017,
+      "update_ms_p95": 3.54223354994474
+    },
+    "mcl_ml": {
+      "converged": 1.0,
+      "convergence_s": 0.0,
+      "tracking_rmse_m": 0.04124956415231855,
+      "tracking_heading_rmse_deg": 0.4627486056151391,
+      "recovered": 1.0,
+      "recovery_s": 0.3999999999999986,
+      "update_ms_mean": 3.149911434993934,
+      "update_ms_p95": 3.7451721499792257
+    },
+    "ml_only": {
+      "converged": 1.0,
+      "convergence_s": 0.0,
+      "tracking_rmse_m": 0.39937156891422143,
+      "tracking_heading_rmse_deg": 9.477809606028588,
+      "recovered": 1.0,
+      "recovery_s": 1.2000000000000028,
+      "update_ms_mean": 0.2266121649984143,
+      "update_ms_p95": 0.26512609999826964,
+      "median_error_m": 0.22173203699676824
+    }
+  }
+}

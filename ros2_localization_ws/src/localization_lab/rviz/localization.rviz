@@ -1,0 +1,119 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 0.5
+      Plane Cell Count: 20
+    - Class: rviz_default_plugins/Map
+      Name: Map
+      Enabled: true
+      Topic:
+        Value: /map
+        Durability Policy: Transient Local
+      Color Scheme: map
+      Alpha: 0.7
+    - Class: rviz_default_plugins/Map
+      Name: Grid-localization belief
+      Enabled: true
+      Topic:
+        Value: /localization/belief
+      Color Scheme: costmap
+      Alpha: 0.6
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Durability Policy: Transient Local
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Marker Scale: 0.4
+    - Class: rviz_default_plugins/LaserScan
+      Name: Scan
+      Enabled: true
+      Topic:
+        Value: /scan
+        Reliability Policy: Best Effort
+      Style: Flat Squares
+      Size (m): 0.04
+      Color Transformer: FlatColor
+      Color: 255; 50; 50
+    - Class: rviz_default_plugins/PoseArray
+      Name: Particles (ours)
+      Enabled: true
+      Topic:
+        Value: /localization/particles
+      Shape: Arrow (Flat)
+      Color: 120; 180; 255
+      Arrow Length: 0.08
+    - Class: rviz_default_plugins/ParticleCloud
+      Name: Particles (Nav2 AMCL)
+      Enabled: true
+      Topic:
+        Value: /particle_cloud
+        Reliability Policy: Best Effort
+      Shape: Arrow (Flat)
+      Color: 255; 170; 0
+      Arrow Length: 0.08
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: Estimate (ours)
+      Enabled: true
+      Topic:
+        Value: /localization/pose
+      Shape: Arrow
+      Color: 0; 160; 255
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: Estimate (Nav2 AMCL)
+      Enabled: true
+      Topic:
+        Value: /amcl_pose
+      Shape: Arrow
+      Color: 255; 170; 0
+    - Class: rviz_default_plugins/PoseWithCovariance
+      Name: ML only (regressor)
+      Enabled: true
+      Topic:
+        Value: /ml/pose
+      Shape: Arrow
+      Color: 255; 0; 200
+    - Class: rviz_default_plugins/Path
+      Name: Ground truth path
+      Enabled: true
+      Topic:
+        Value: /ground_truth/path
+      Color: 0; 220; 0
+      Line Style: Billboards
+      Line Width: 0.03
+  Enabled: true
+  Global Options:
+    Fixed Frame: map
+    Background Color: 48; 48; 48
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Value: /goal_pose
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Name: Current View
+      Scale: 110
+      X: 0
+      Y: 0
