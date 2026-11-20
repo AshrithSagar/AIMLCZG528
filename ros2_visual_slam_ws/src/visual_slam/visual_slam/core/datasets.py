@@ -72,7 +72,7 @@ class TumAssociation:
 
     @staticmethod
     def associate(a: FloatArray, b: FloatArray, max_dt: float) -> list[tuple[int, int]]:
-        pairs, j = [], 0
+        pairs = []
         for i, t in enumerate(a):
             k = int(np.argmin(np.abs(b - t)))
             if abs(b[k] - t) <= max_dt:

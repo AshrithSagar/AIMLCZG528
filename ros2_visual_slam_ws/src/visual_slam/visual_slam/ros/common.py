@@ -35,6 +35,30 @@ class Frames:
     T_BODY_OPTICAL = SE3(R_BODY_OPTICAL, np.zeros(3))
 
 
+class MapConvention:
+    """
+    `map` = the camera's *body* frame (x forward, y left, z up) at the first frame, so RViz shows the
+    scene upright. SLAM works internally in the first *optical* frame (z forward), and datasets give
+    optical-frame poses in their own world; both are converted here, once, for every publisher.
+    """
+
+    T_BO = Frames.T_BODY_OPTICAL
+
+    @classmethod
+    def pose(cls, T_world0_optical: SE3) -> SE3:
+        """Optical-frame pose relative to the first optical frame -> camera_link pose in `map`."""
+        return cls.T_BO @ T_world0_optical @ cls.T_BO.inverse()
+
+    @classmethod
+    def points(cls, points_world0_optical: np.ndarray) -> np.ndarray:
+        return cls.T_BO.apply(points_world0_optical) if len(points_world0_optical) else points_world0_optical
+
+    @classmethod
+    def ground_truth(cls, first: SE3, gt: SE3) -> SE3:
+        """A dataset pose (optical frame, dataset world), re-based on the first frame the player published."""
+        return cls.pose(first.inverse() @ gt)
+
+
 class QoS:
     @staticmethod
     def images() -> QoSProfile:

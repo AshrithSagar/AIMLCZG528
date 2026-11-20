@@ -1,19 +1,32 @@
 # Visual SLAM in ROS 2 (RGB-D)
 
-One SLAM node and four interchangeable camera sources. Pluggable feature front-ends: classical ORB / SIFT / AKAZE, or learned SuperPoint. Loop closure + pose-graph optimisation, scored with the TUM RGB-D benchmark metrics (ATE / RPE).
+One SLAM node and four interchangeable camera sources. Loop closure + pose-graph optimisation, scored with the TUM RGB-D benchmark metrics (ATE / RPE).
+
+Every stage has a classical and a deep-learning option, switched by a launch argument:
+
+| stage          | classical                           | learned                                                                     |
+| -------------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| features       | ORB / SIFT / AKAZE                  | SuperPoint (`feature_type:=superpoint`)                                     |
+| matching       | brute force + ratio test            | LightGlue (`matcher:=lightglue`)                                            |
+| loop detection | pose-prior voting, image thumbnails | DINOv2 global descriptor (`place_recognition:=dinov2`)                      |
+| depth          | the RGB-D sensor                    | Depth Anything V2 from colour only (`depth:=learned`)                       |
+| whole system   | this pipeline                       | DPVO / DROID-SLAM, run offline on a GPU and overlaid (`dl_trajectory:=...`) |
 
 ```plaintext
 ros2_visual_slam_ws/
 ├── expected_output/            # figures + summary.md from `vslam_benchmark` (synthetic loop)
 └── src/visual_slam/
-    ├── visual_slam/core/       # ROS-free: se3, camera, features, tracking, backend, synthetic, datasets, metrics, gazebo
-    ├── visual_slam/ros/        # rgbd_player_node, visual_slam_node, trajectory_evaluator_node, rig_driver_node
-    ├── visual_slam/benchmark.py
+    ├── visual_slam/core/       # ROS-free: se3, camera, features, matching, tracking, place_recognition, backend,
+    │                           #           depth, runtime (optional PyTorch), synthetic, datasets, metrics, gazebo
+    ├── visual_slam/ros/        # rgbd_player_node, visual_slam_node, trajectory_evaluator_node, rig_driver_node,
+    │                           # depth_estimator_node, trajectory_overlay_node
+    ├── visual_slam/benchmark.py  # vslam_benchmark, export_synthetic
+    ├── visual_slam/apps.py       # dl_check, vslam_score
     ├── visual_slam/launch_builder.py
     ├── launch/vslam.launch.py
     ├── config/gz_bridge.yaml
     ├── rviz/vslam.rviz
-    └── test/test_core.py
+    └── test/                   # test_core.py, test_learned.py (no PyTorch needed)
 ```
 
 ## Setup (lab VM, ROS 2 Jazzy)
@@ -37,10 +50,24 @@ Optional:
 mkdir -p ~/datasets && cd ~/datasets
 wget https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_xyz.tgz && tar xzf rgbd_dataset_freiburg1_xyz.tgz
 
-# Learned front-end (SuperPoint): PyTorch + weights
-pip install torch --index-url https://download.pytorch.org/whl/cpu      # CPU build; use the CUDA build on a GPU VM
-wget -O ~/superpoint_v1.pth https://github.com/magicleap/SuperPointPretrainedNetwork/raw/master/superpoint_v1.pth
+# a TUM sequence with a real loop, for loop detection
+wget https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_room.tgz && tar xzf rgbd_dataset_freiburg1_room.tgz
 ```
+
+Deep-learning components (optional; the classical pipeline never imports PyTorch):
+
+```shell
+# user site-packages, so ROS's /usr/bin/python3 sees them; numpy<2 keeps cv_bridge working
+pip install --user --break-system-packages "numpy<2" \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu      # GPU VM: use the CUDA index instead
+pip install --user --break-system-packages "numpy<2" "transformers>=4.45" \
+    git+https://github.com/cvg/LightGlue.git
+
+ros2 run visual_slam dl_check                  # downloads the models once, runs each one, prints a table
+ros2 run visual_slam dl_check --device cuda    # on a GPU VM
+```
+
+`dl_check` tests SuperPoint + LightGlue (relative pose error), DINOv2 (a revisit must look more similar than the far side of the room) and Depth Anything V2 (AbsRel vs sensor depth), with milliseconds per call on this machine. Models come from GitHub (LightGlue, SuperPoint) and Hugging Face (DINOv2, Depth Anything), so the VM needs access to both once.
 
 ## Run
 
@@ -49,6 +76,11 @@ ros2 launch visual_slam vslam.launch.py                                   # synt
 ros2 launch visual_slam vslam.launch.py source:=tum path:=~/datasets/rgbd_dataset_freiburg1_xyz
 ros2 launch visual_slam vslam.launch.py source:=gazebo                    # Gazebo RGB-D camera (rendering test)
 ros2 launch visual_slam vslam.launch.py feature_type:=sift loop_closure:=false
+
+# deep learning (after the pip installs above)
+ros2 launch visual_slam vslam.launch.py feature_type:=superpoint matcher:=lightglue
+ros2 launch visual_slam vslam.launch.py source:=tum path:=~/datasets/rgbd_dataset_freiburg1_room place_recognition:=dinov2
+ros2 launch visual_slam vslam.launch.py source:=tum path:=~/datasets/rgbd_dataset_freiburg1_xyz depth:=learned rate:=2
 
 ros2 service call /trajectory_evaluator_node/report std_srvs/srv/Trigger   # ATE/RPE + TUM files
 ros2 topic echo /diagnostics                                              # fps, per-stage ms, dropped frames
@@ -65,13 +97,19 @@ ros2 bag play vslam_input --clock --rate 0.5        # slower playback = what a s
 
 ## Is the machine fast enough? (GPU decision)
 
+A configuration is `features[+matcher][@place_recognition]`, e.g. `orb`, `superpoint+lightglue`, `orb@dinov2`.
+
 ```shell
 ros2 run visual_slam vslam_benchmark --out ~/vslam_bench                                   # synthetic, 320x240
 ros2 run visual_slam vslam_benchmark --source tum --path ~/datasets/rgbd_dataset_freiburg1_xyz --out ~/vslam_bench_tum
-ros2 run visual_slam vslam_benchmark --features orb,superpoint --device cuda ...           # on a GPU VM
+ros2 run visual_slam vslam_benchmark --source tum --path ~/datasets/rgbd_dataset_freiburg1_room \
+    --configs orb,orb@thumbnail,orb@dinov2 --out ~/vslam_bench_loops                     # loop detection
+ros2 run visual_slam vslam_benchmark --source tum --path ~/datasets/rgbd_dataset_freiburg1_xyz \
+    --configs orb --depth learned --max-frames 300 --out ~/vslam_bench_depth               # learned depth
+ros2 run visual_slam vslam_benchmark --configs orb,superpoint+lightglue --device cuda ...   # on a GPU VM
 ```
 
-`summary.md` lists fps, a "real-time?" verdict against the camera rate, per-stage timings (extract / match / PnP / loop + PGO) and ATE / RPE for every front-end. If a learned front-end is real-time only with `--device cuda`, that is the case for a GPU.
+`summary.md` lists fps, a "real-time?" verdict against the camera rate, per-stage timings and ATE / RPE for every configuration, plus a loop-detection table (recall@1, false loops) and, with `--depth learned`, a depth table (AbsRel, RMSE, δ<1.25). Configurations whose packages are missing are listed as skipped, with the install command. If a learned component is real-time only with `--device cuda`, that is the case for a GPU.
 
 For rendering, run `source:=gazebo` and compare `processed_fps` with `input_fps` on `/diagnostics`. Also check Gazebo's real-time factor:
 
@@ -81,10 +119,28 @@ gz topic -e -t /world/vslam_room/stats | grep real_time_factor
 
 Expected output on a 2-CPU machine, synthetic 320×240 @ 15 Hz (`expected_output/summary.md`):
 
-| front-end | fps  | ATE VO | ATE SLAM | loops |
-| --------- | ---- | ------ | -------- | ----- |
-| ORB       | ~100 | 7.1 cm | 4.9 cm   | 2     |
-| SIFT      | ~69  | 2.6 cm | 1.8 cm   | 2     |
+| front-end | fps | ATE VO | ATE SLAM | loops |
+| --------- | --- | ------ | -------- | ----- |
+| ORB       | ~80 | 7.1 cm | 4.9 cm   | 2     |
+| SIFT      | ~50 | 2.6 cm | 1.8 cm   | 2     |
+
+## End-to-end deep SLAM (DPVO) as a reference
+
+DPVO (Teed, Lipson, Deng, NeurIPS 2023) is a whole visual-odometry system learned end to end. It needs an NVIDIA GPU with CUDA and compiled extensions, so it runs **offline**, outside ROS, following its own README (https://github.com/princeton-vl/DPVO): conda environment, `pip install .`, `./download_models_and_data.sh`, then `demo.py --imagedir=<sequence>/rgb --calib=<file> --stride=1 --save_trajectory` (calibration format as in the repo's `calib/*.txt`; TUM fr1 intrinsics are 517.3 516.5 318.6 255.3). Only the resulting TUM-format trajectory file comes back to the lab VM:
+
+```shell
+# score it: monocular, so align with scale; if it is stamped with frame indices, map them to rgb.txt
+ros2 run visual_slam vslam_score --gt ~/datasets/rgbd_dataset_freiburg1_xyz --sim3 \
+    --est ~/dpvo_fr1_xyz.txt --frame-stamps ~/datasets/rgbd_dataset_freiburg1_xyz/rgb.txt
+# ours on the same sequence (the benchmark writes dataset-stamped TUM files)
+ros2 run visual_slam vslam_score --gt ~/datasets/rgbd_dataset_freiburg1_xyz --est ~/vslam_bench_tum/estimate_orb.tum
+
+# show it in RViz next to ours (orange path), on the same sequence
+ros2 launch visual_slam vslam.launch.py source:=tum path:=~/datasets/rgbd_dataset_freiburg1_xyz \
+    dl_trajectory:=~/dpvo_fr1_xyz.txt
+```
+
+`--frame-stamps` is only for files stamped with frame indices. The live node's own TUM files carry ROS clock stamps, not dataset times, so score ours from the benchmark's files instead.
 
 ## Comparing against a reference SLAM (RTAB-Map)
 
@@ -109,4 +165,7 @@ ros2 run visual_slam trajectory_evaluator_node --ros-args -r __node:=rtabmap_eva
 | `/vslam/map/dense`, `/vslam/map/points`                             | `sensor_msgs/PointCloud2`           | `visual_slam_node`           |
 | `/vslam/keyframes`, `/vslam/loop_closures`, `/vslam/debug/features` |                                     | `visual_slam_node`           |
 | `/ground_truth/pose` (dataset) or `/ground_truth/odom` (Gazebo)     |                                     | player / Gazebo              |
+| `/camera/depth_sensor/image_rect_raw` (`depth:=learned` only)       | `sensor_msgs/Image` (32FC1 m)       | player (reference depth)     |
+| `/depth_estimator/debug`                                            | `sensor_msgs/Image` (bgr8)          | `depth_estimator_node`       |
+| `/dl_slam/path`                                                     | `nav_msgs/Path`                     | `trajectory_overlay_node`    |
 | `/diagnostics`                                                      | `diagnostic_msgs/DiagnosticArray`   | all nodes                    |

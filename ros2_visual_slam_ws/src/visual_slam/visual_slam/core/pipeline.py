@@ -13,21 +13,39 @@ from dataclasses import dataclass, field
 from .backend import KeyframeMap, LoopConfig, LoopDetector, PoseGraphOptimizer
 from .camera import PinholeCamera, RgbdFrame
 from .features import FeatureExtractor, FeatureExtractorFactory
+from .matching import MatcherFactory
 from .metrics import Trajectory
+from .place_recognition import PlaceRecognizerFactory
 from .se3 import SE3
-from .tracking import DescriptorMatcher, OdometryConfig, RgbdOdometry, TrackingState
+from .tracking import OdometryConfig, RgbdOdometry, TrackingState
 
 
 @dataclass(frozen=True, slots=True)
 class SlamConfig:
-    feature_type: str = "orb"
+    feature_type: str = "orb"  # orb | sift | akaze | superpoint
+    matcher: str = "bruteforce"  # bruteforce | lightglue
+    place_recognition: str = "proximity"  # proximity | thumbnail | dinov2
     max_features: int = 1000
-    superpoint_weights: str = ""
-    device: str = "cpu"
+    device: str = "cpu"  # for every learned component
     match_ratio: float = 0.8
     odometry: OdometryConfig = field(default_factory=OdometryConfig)
     loop: LoopConfig = field(default_factory=LoopConfig)
     loop_closure: bool = True
+
+
+    @property
+    def label(self) -> str:
+        """Short name of this combination, e.g. `superpoint+lightglue@dinov2`."""
+        return self.feature_type + ("" if self.matcher == "bruteforce" else f"+{self.matcher}") + \
+            ("" if self.place_recognition == "proximity" else f"@{self.place_recognition}")
+
+    @classmethod
+    def from_label(cls, label: str, **kwargs: object) -> SlamConfig:
+        """Inverse of `label`: `feature[+matcher][@place_recognition]`."""
+        rest, _, place = label.partition("@")
+        feature, _, matcher = rest.partition("+")
+        return cls(feature_type=feature, matcher=matcher or "bruteforce", place_recognition=place or "proximity",
+                   **kwargs)  # type: ignore[arg-type]
 
 
 @dataclass(slots=True)
@@ -48,17 +66,19 @@ class VisualSlamPipeline:
         self.camera = camera
         self.config = config
         self.extractor = extractor or FeatureExtractorFactory.create(
-            config.feature_type, config.max_features, config.superpoint_weights, config.device)
-        matcher = DescriptorMatcher(config.match_ratio)
-        self.odometry = RgbdOdometry(camera, matcher, config.odometry)
+            config.feature_type, config.max_features, config.device)
+        self.matcher = MatcherFactory.create(config.matcher, config.feature_type, config.match_ratio, config.device)
+        self.odometry = RgbdOdometry(camera, self.matcher, config.odometry)
         self.map = KeyframeMap()
-        self.loops = LoopDetector(camera, matcher, config.loop)
+        recognizer = PlaceRecognizerFactory.create(config.place_recognition, config.loop.recognition,
+                                                   self.matcher, config.device)
+        self.loops = LoopDetector(camera, self.matcher, config.loop, recognizer)
         self.optimizer = PoseGraphOptimizer()
         # every frame is stored relative to its reference keyframe, so pose-graph
         # corrections propagate to the whole trajectory (as in ORB-SLAM)
         self._frames: list[tuple[float, int, SE3]] = []
-        self._loop_cooldown = 0
-        self.last_features = None  # most recent frame's features (for debug visualisation)  # skip detection right after a closure (same place, same loop)
+        self._loop_cooldown = 0  # skip detection right after a closure (same place, same loop)
+        self.last_features = None  # most recent frame's features (for debug visualisation)
 
     def process(self, frame: RgbdFrame) -> FrameResult:
         t0 = time.perf_counter()
@@ -71,6 +91,9 @@ class VisualSlamPipeline:
         if res.new_keyframe is not None:
             self.map.add(res.new_keyframe)
             if self.config.loop_closure:
+                t_db = time.perf_counter()
+                self.loops.observe(res.new_keyframe)  # every keyframe enters the place database
+                timings["place_db_ms"] = 1000 * (time.perf_counter() - t_db)
                 loop_closed = self._close_loops(res.new_keyframe, timings)
         kf = self.odometry.keyframe
         assert kf is not None

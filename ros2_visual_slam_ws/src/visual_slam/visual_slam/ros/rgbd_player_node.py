@@ -9,6 +9,8 @@ Publishes exactly what a real RGB-D driver (RealSense, Kinect) would:
   /camera/color/image_raw          sensor_msgs/Image       rgb8
   /camera/color/camera_info        sensor_msgs/CameraInfo  (K, D, P)
   /camera/depth/image_rect_raw     sensor_msgs/Image       32FC1 metres (REP-118), registered to colour
+                                   (param depth_topic: with depth:=learned the sensor depth moves to
+                                    /camera/depth_sensor/image_rect_raw, as reference for the depth metrics)
   /camera/depth/camera_info        sensor_msgs/CameraInfo
   /ground_truth/pose, /ground_truth/path                   (frame map) — only because it is a dataset!
   TF (static) camera_link -> camera_color_optical_frame
@@ -31,7 +33,7 @@ from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from ..core.camera import PinholeCamera
 from ..core.datasets import SequenceFactory
 from ..core.se3 import SE3
-from .common import Frames, QoS, RosConv, VslamNodeBase
+from .common import Frames, MapConvention, QoS, RosConv, VslamNodeBase
 
 
 class RgbdPlayerNode(VslamNodeBase):
@@ -49,10 +51,12 @@ class RgbdPlayerNode(VslamNodeBase):
 
         self.color_pub = self.create_publisher(Image, "/camera/color/image_raw", QoS.images())
         self.color_info_pub = self.create_publisher(CameraInfo, "/camera/color/camera_info", QoS.images())
-        self.depth_pub = self.create_publisher(Image, "/camera/depth/image_rect_raw", QoS.images())
+        self.depth_pub = self.create_publisher(Image, self.param("depth_topic", "/camera/depth/image_rect_raw"),
+                                               QoS.images())
         self.depth_info_pub = self.create_publisher(CameraInfo, "/camera/depth/camera_info", QoS.images())
         self.gt_pub = self.create_publisher(PoseStamped, "/ground_truth/pose", 10)
         self.gt_path_pub = self.create_publisher(Path, "/ground_truth/path", QoS.latched())
+        self.first_gt: SE3 | None = None  # ground truth is re-based here, like the SLAM map (MapConvention)
         self.gt_path = Path()
         self.gt_path.header.frame_id = Frames.MAP
 
@@ -96,8 +100,9 @@ class RgbdPlayerNode(VslamNodeBase):
             self.get_logger().info("End of sequence" + (" — looping" if self.loop else ""))
 
     def _publish_ground_truth(self, gt: SE3, stamp) -> None:  # noqa: ANN001 - builtin_interfaces/Time
-        # datasets give the *optical* frame pose; publish camera_link (body) like the SLAM estimate does
-        ps = RosConv.pose_stamped(gt @ Frames.T_BODY_OPTICAL.inverse(), Frames.MAP, stamp)
+        # datasets give *optical*-frame poses in their own world: publish camera_link in `map`, like the SLAM
+        self.first_gt = self.first_gt or gt
+        ps = RosConv.pose_stamped(MapConvention.ground_truth(self.first_gt, gt), Frames.MAP, stamp)
         self.gt_pub.publish(ps)
         if self.index % 3 == 0:  # thin the path a little
             self.gt_path.poses.append(ps)

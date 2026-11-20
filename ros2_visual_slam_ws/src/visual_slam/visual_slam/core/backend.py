@@ -2,7 +2,7 @@
 Back-end: keyframe map, loop-closure detection and pose-graph optimisation.
 
   KeyframeMap         keyframes + odometry edges, map point cloud
-  LoopDetector        place recognition (descriptor voting) + PnP geometric check
+  LoopDetector        place recognition (a pluggable `PlaceRecognizer`) + PnP geometric check
   PoseGraphOptimizer  SE(3) pose graph, sparse least squares (SciPy)
 
 This is what turns visual odometry (drifts forever) into SLAM (drift is
@@ -18,7 +18,9 @@ import numpy as np
 
 from .camera import PinholeCamera
 from .se3 import SE3, SO3, FloatArray
-from .tracking import DescriptorMatcher, Keyframe, PnpSolver
+from .matching import FeatureMatcher
+from .place_recognition import PlaceRecognizer, RecognitionConfig
+from .tracking import Keyframe, PnpSolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,12 +74,9 @@ class KeyframeMap:
 
 @dataclass(frozen=True, slots=True)
 class LoopConfig:
-    min_separation: int = 30  # only consider keyframes at least this many keyframes old
-    candidates: int = 3  # best-scoring candidates to verify geometrically
-    min_score: float = 0.08  # fraction of current features voting for a candidate
+    recognition: RecognitionConfig = field(default_factory=RecognitionConfig)
+    candidates: int = 3  # best-ranked candidates to verify geometrically
     min_inliers: int = 40
-    search_radius: float = 2.0  # m, around the (drifting) odometry estimate
-    max_checked: int = 15  # nearest old keyframes scored by descriptor voting
     cooldown: int = 2  # keyframes to skip after a successful closure
 
 
@@ -88,39 +87,59 @@ class LoopCandidate:
     score: float
 
 
+@dataclass(frozen=True, slots=True)
+class LoopQuery:
+    """One place-recognition query, kept for evaluation (recall@1, false loops)."""
+
+    query_id: int
+    top_id: int | None  # best-ranked candidate (before verification)
+    top_score: float
+    verified_id: int | None  # candidate accepted by the geometric check
+    ms: float
+
+
 class LoopDetector:
     """
-    Appearance-based place recognition by direct descriptor voting against old
-    keyframes (a tiny stand-in for DBoW2/NetVLAD), then PnP geometric verification.
+    Loop closure = place recognition (which old keyframe?) + geometric verification
+    (do enough features agree on one rigid motion?). Recognition is a Strategy;
+    verification is the same for every recogniser, so a learned recogniser can
+    propose wrong places but cannot insert a wrong loop on its own.
     """
 
-    def __init__(self, camera: PinholeCamera, matcher: DescriptorMatcher, config: LoopConfig) -> None:
+    def __init__(self, camera: PinholeCamera, matcher: FeatureMatcher, config: LoopConfig,
+                 recognizer: PlaceRecognizer) -> None:
         self.config = config
         self.matcher = matcher
+        self.recognizer = recognizer
         self.pnp = PnpSolver(camera, reproj_error_px=3.0, iterations=300, min_inliers=config.min_inliers)
+        self.queries: list[LoopQuery] = []
+
+    def observe(self, kf: Keyframe) -> None:
+        self.recognizer.add(kf)
 
     def detect(self, kf: Keyframe, kmap: KeyframeMap) -> LoopCandidate | None:
-        c = self.config
-        old = [k for k in kmap.keyframes if k.id <= kf.id - c.min_separation]
-        if not old:
-            return None
-        dist = np.array([np.linalg.norm(k.pose.translation - kf.pose.translation) for k in old])
-        order = np.argsort(dist)[: c.max_checked]
-        old = [old[i] for i in order if dist[i] < c.search_radius]
-        scored = []
-        for cand in old:
-            pairs = self.matcher.match(kf.features, cand.features)
-            scored.append((len(pairs) / max(len(kf.features), 1), cand, pairs))
-        scored.sort(key=lambda s: -s[0])
-        for score, cand, pairs in scored[: c.candidates]:
-            if score < c.min_score:
+        t0 = time.perf_counter()
+        ranked = self.recognizer.query(kf, kmap.keyframes)
+        found = None
+        for cand in ranked[: self.config.candidates]:
+            found = self._verify(kf, cand.keyframe, cand.pairs, cand.score)
+            if found is not None:
                 break
-            pairs = pairs[cand.valid[pairs[:, 1]]]
-            res = self.pnp.solve(cand.points[pairs[:, 1]], kf.features.keypoints[pairs[:, 0]])
-            if res.ok:
-                # res.T_cur_ref = T_kf_cand  ->  edge cand -> kf
-                return LoopCandidate(Edge(cand.id, kf.id, res.T_cur_ref.inverse(), loop=True), len(res.inliers), score)
-        return None
+        self.queries.append(LoopQuery(kf.id, ranked[0].keyframe.id if ranked else None,
+                                      ranked[0].score if ranked else 0.0, found.edge.i if found else None,
+                                      1000.0 * (time.perf_counter() - t0)))
+        return found
+
+    def _verify(self, kf: Keyframe, cand: Keyframe, pairs: np.ndarray | None, score: float) -> LoopCandidate | None:
+        pairs = self.matcher.match(kf.features, cand.features) if pairs is None else pairs
+        pairs = pairs[cand.valid[pairs[:, 1]]] if len(pairs) else pairs
+        if len(pairs) < self.config.min_inliers:
+            return None
+        res = self.pnp.solve(cand.points[pairs[:, 1]], kf.features.keypoints[pairs[:, 0]])
+        if not res.ok:
+            return None
+        # res.T_cur_ref = T_kf_cand  ->  edge cand -> kf
+        return LoopCandidate(Edge(cand.id, kf.id, res.T_cur_ref.inverse(), loop=True), len(res.inliers), score)
 
 
 class BatchSO3:

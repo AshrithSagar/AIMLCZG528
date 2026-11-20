@@ -1,5 +1,5 @@
 """
-Front-end: descriptor matching + RGB-D visual odometry (frame-to-keyframe PnP).
+Front-end: feature matching + RGB-D visual odometry (frame-to-keyframe PnP).
 
 For every new frame:
   1. match its features against the current keyframe's features,
@@ -20,34 +20,8 @@ from numpy.typing import NDArray
 
 from .camera import PinholeCamera, RgbdFrame
 from .features import Features
+from .matching import DescriptorMatcher, FeatureMatcher  # noqa: F401 - DescriptorMatcher re-exported (used to live here)
 from .se3 import SE3, FloatArray
-
-
-class DescriptorMatcher:
-    """Brute-force k-NN with Lowe's ratio test and a mutual (cross) check."""
-
-    def __init__(self, ratio: float = 0.8) -> None:
-        self.ratio = ratio
-        self._bf_cache: dict[bool, cv2.BFMatcher] = {}
-
-    def _bf(self, binary: bool) -> cv2.BFMatcher:
-        if binary not in self._bf_cache:
-            self._bf_cache[binary] = cv2.BFMatcher(cv2.NORM_HAMMING if binary else cv2.NORM_L2)
-        return self._bf_cache[binary]
-
-    def match(self, query: Features, train: Features) -> NDArray[np.intp]:
-        """(M, 2) index pairs (query_idx, train_idx)."""
-        if len(query) < 2 or len(train) < 2:
-            return np.zeros((0, 2), dtype=np.intp)
-        bf = self._bf(query.binary)
-        fwd = bf.knnMatch(query.descriptors, train.descriptors, k=2)
-        good = {m.queryIdx: m.trainIdx for m, n in (p for p in fwd if len(p) == 2) if m.distance < self.ratio * n.distance}
-        if not good:
-            return np.zeros((0, 2), dtype=np.intp)
-        bwd = bf.match(train.descriptors, query.descriptors)
-        back = {m.queryIdx: m.trainIdx for m in bwd}
-        pairs = [(q, t) for q, t in good.items() if back.get(t) == q]
-        return np.asarray(pairs, dtype=np.intp).reshape(-1, 2)
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +103,7 @@ class TrackResult:
 class RgbdOdometry:
     """Frame-to-keyframe RGB-D visual odometry."""
 
-    def __init__(self, camera: PinholeCamera, matcher: DescriptorMatcher, config: OdometryConfig) -> None:
+    def __init__(self, camera: PinholeCamera, matcher: FeatureMatcher, config: OdometryConfig) -> None:
         self.camera = camera
         self.matcher = matcher
         self.config = config

@@ -17,6 +17,7 @@ from visual_slam.core.se3 import SE3, SO3
 from visual_slam.core.synthetic import LoopTrajectory, SyntheticSequence
 from visual_slam.core.tracking import Keyframe, PnpSolver
 from visual_slam.core.features import Features
+from visual_slam.core.runtime import MissingDependency, TorchRuntime
 
 
 @pytest.fixture(scope="module")
@@ -108,8 +109,9 @@ def test_classical_extractors(kind: str, source: SyntheticSource) -> None:
 def test_unknown_or_unavailable_extractor() -> None:
     with pytest.raises(ValueError):
         FeatureExtractorFactory.create("harris")
-    with pytest.raises(RuntimeError):  # no torch or no weights -> a clear error, not a crash
-        FeatureExtractorFactory.create("superpoint", superpoint_weights="/nonexistent.pth")
+    if not (TorchRuntime.available("torch") and TorchRuntime.available("lightglue")):
+        with pytest.raises(MissingDependency, match="pip install"):  # a clear message, not a crash
+            FeatureExtractorFactory.create("superpoint")
 
 
 def test_pnp_recovers_known_motion() -> None:
