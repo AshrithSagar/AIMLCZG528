@@ -1,0 +1,81 @@
+{
+  "system": {
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39",
+    "python": "3.13.18",
+    "cpu_count": 2,
+    "opencv": "5.0.0",
+    "opencv_threads": 2,
+    "torch": null,
+    "cuda_available": false
+  },
+  "sequence": "synthetic_room_loop",
+  "input_hz": 15.000000000000002,
+  "runs": [
+    {
+      "feature_type": "orb",
+      "device": "cpu",
+      "frames": 660,
+      "fps": 100.91691710275327,
+      "timings_mean_ms": {
+        "extract_ms": 2.5397607848490087,
+        "loop_ms": 0.057844918180969464,
+        "total_ms": 9.900146656063539,
+        "match_ms": 5.658310978786273,
+        "pnp_ms": 0.790384998486898,
+        "pgo_ms": 0.1984772833335421
+      },
+      "timings_p95_ms": {
+        "extract_ms": 2.761886899997989,
+        "loop_ms": 6.814422399975222,
+        "total_ms": 12.925338399838893,
+        "match_ms": 8.97026499990261,
+        "pnp_ms": 1.0057630000119389,
+        "pgo_ms": 74.48136424997074
+      },
+      "keyframes": 37,
+      "loops": 2,
+      "lost": 0,
+      "mean_features": 826.010606060606,
+      "mean_inliers": 303.8545454545455,
+      "ate_vo_m": 0.07050701193637317,
+      "ate_slam_m": 0.04864340043428688,
+      "rpe_trans_m": 0.04030219944008933,
+      "rpe_rot_deg": 0.6910149881166676
+    },
+    {
+      "feature_type": "sift",
+      "device": "cpu",
+      "frames": 660,
+      "fps": 68.9078594000715,
+      "timings_mean_ms": {
+        "extract_ms": 11.01645327727593,
+        "loop_ms": 0.017404931818556648,
+        "total_ms": 14.501465959094936,
+        "match_ms": 2.2224384121214467,
+        "pnp_ms": 0.7210071696948889,
+        "pgo_ms": 0.12501657575760625
+      },
+      "timings_p95_ms": {
+        "extract_ms": 14.008498250154844,
+        "loop_ms": 1.2168402999236585,
+        "total_ms": 19.62389214994573,
+        "match_ms": 4.155597900057731,
+        "pnp_ms": 0.9686961001307284,
+        "pgo_ms": 41.51618739998639
+      },
+      "keyframes": 36,
+      "loops": 2,
+      "lost": 0,
+      "mean_features": 325.6318181818182,
+      "mean_inliers": 125.04545454545455,
+      "ate_vo_m": 0.026261533179322446,
+      "ate_slam_m": 0.017905033539645444,
+      "rpe_trans_m": 0.016012603407685143,
+      "rpe_rot_deg": 0.27204932594388126
+    }
+  ],
+  "skipped": {
+    "akaze": "cv2.AKAZE_create is not available in OpenCV 5.0.0",
+    "superpoint": "feature_type 'superpoint' needs PyTorch: pip install torch"
+  }
+}

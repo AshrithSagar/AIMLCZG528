@@ -1,0 +1,122 @@
+"""
+Gazebo (gz-sim Harmonic) export of the synthetic scene + a flying RGB-D camera rig.
+
+Same `SceneSpec` and `TextureBank` as the CPU renderer, so `source:=synthetic`
+and `source:=gazebo` show the same room. Gazebo renders the camera with OpenGL
+(ogre2): this is the experiment that tells us whether the lab VM needs a GPU.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from pathlib import Path
+
+from .synthetic import SceneSpec, TextureBank, TexturedBox
+
+
+@dataclass(frozen=True, slots=True)
+class RigConfig:
+    width: int = 640
+    height: int = 480
+    hfov: float = 1.047  # 60 deg
+    rate_hz: float = 15.0
+    start_radius: float = 1.3
+    z: float = 1.3
+    yaw_offset_deg: float = 35.0  # camera turned outward from the direction of travel (as in LoopTrajectory)
+
+
+class GazeboWorldWriter:
+    NAME = "vslam_room"
+
+    def __init__(self, scene: SceneSpec | None = None, rig: RigConfig | None = None) -> None:
+        self.scene = scene or SceneSpec.default_room()
+        self.rig = rig or RigConfig()
+
+    def write(self, folder: str | Path) -> Path:
+        root = Path(folder).expanduser()
+        textures = TextureBank().write_png(root / "textures")
+        models = []
+        for box in self.scene.boxes:
+            models += self._room(box, textures) if box.inverted else [self._box(box, textures[6 * box.texture % len(textures)])]
+        sdf = self._world("\n".join(models) + "\n" + self._rig())
+        out = root / f"{self.NAME}.sdf"
+        out.write_text(sdf, encoding="utf-8")
+        return out
+
+    # ------------------------------------------------------------------ #
+    def _room(self, room: TexturedBox, textures: list[Path]) -> list[str]:
+        """Inverted box -> floor + 4 walls (no ceiling, so the sun lights the inside)."""
+        (cx, cy, cz), (sx, sy, sz), t = room.center, room.size, 0.1
+        lo_z = cz - sz / 2
+        parts = [
+            ("floor", (cx, cy, lo_z - t / 2), (sx, sy, t), 4),
+            ("wall_x_lo", (cx - sx / 2 - t / 2, cy, cz), (t, sy, sz), 0),
+            ("wall_x_hi", (cx + sx / 2 + t / 2, cy, cz), (t, sy, sz), 1),
+            ("wall_y_lo", (cx, cy - sy / 2 - t / 2, cz), (sx, t, sz), 2),
+            ("wall_y_hi", (cx, cy + sy / 2 + t / 2, cz), (sx, t, sz), 3),
+        ]
+        return [self._box(TexturedBox(f"room_{n}", c, s, k), textures[k % len(textures)]) for n, c, s, k in parts]
+
+    @staticmethod
+    def _box(b: TexturedBox, texture: Path) -> str:
+        geom = f"<geometry><box><size>{b.size[0]} {b.size[1]} {b.size[2]}</size></box></geometry>"
+        mat = (f"<material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>"
+               f"<pbr><metal><albedo_map>{texture.resolve()}</albedo_map><metalness>0</metalness>"
+               f"<roughness>1</roughness></metal></pbr></material>")
+        return f"""    <model name="{b.name}"><static>true</static>
+      <pose>{b.center[0]} {b.center[1]} {b.center[2]} 0 0 0</pose>
+      <link name="link"><collision name="c">{geom}</collision><visual name="v">{geom}{mat}</visual></link>
+    </model>"""
+
+    def _rig(self) -> str:
+        r = self.rig
+        # at (R, 0) travelling counter-clockwise the path tangent is +y; the rig (= camera_link) is turned
+        # outward by yaw_offset and *crabs* along the tangent (see RigDriverNode), so link == camera body
+        yaw0 = math.pi / 2 - math.radians(r.yaw_offset_deg)
+        return f"""    <model name="camera_rig">
+      <pose>{r.start_radius} 0 {r.z} 0 0 {yaw0}</pose>
+      <link name="camera_link">
+        <gravity>false</gravity>
+        <inertial><mass>0.5</mass><inertia><ixx>0.01</ixx><iyy>0.01</iyy><izz>0.01</izz></inertia></inertial>
+        <visual name="v"><geometry><box><size>0.06 0.18 0.04</size></box></geometry></visual>
+        <sensor name="rgbd" type="rgbd_camera">
+          <topic>camera</topic>
+          <gz_frame_id>camera_link</gz_frame_id>
+          <update_rate>{r.rate_hz}</update_rate>
+          <always_on>true</always_on>
+          <camera>
+            <horizontal_fov>{r.hfov}</horizontal_fov>
+            <image><width>{r.width}</width><height>{r.height}</height><format>R8G8B8</format></image>
+            <clip><near>0.1</near><far>10</far></clip>
+            <depth_camera><clip><near>0.1</near><far>10</far></clip></depth_camera>
+          </camera>
+        </sensor>
+      </link>
+      <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl"/>
+      <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+        <odom_frame>map</odom_frame>
+        <robot_base_frame>camera_link</robot_base_frame>
+        <odom_topic>/ground_truth/odom</odom_topic>
+        <dimensions>3</dimensions>
+        <odom_publish_frequency>50</odom_publish_frequency>
+      </plugin>
+    </model>"""
+
+    def _world(self, models: str) -> str:
+        return f"""<?xml version="1.0" ?>
+<!-- AUTO-GENERATED by GazeboWorldWriter (visual_slam). Do not edit. -->
+<sdf version="1.9">
+  <world name="{self.NAME}">
+    <physics name="default" type="ode"><max_step_size>0.004</max_step_size><real_time_factor>1.0</real_time_factor></physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors"><render_engine>ogre2</render_engine></plugin>
+    <scene><ambient>0.6 0.6 0.6 1</ambient><background>0.7 0.7 0.7 1</background></scene>
+    <light type="directional" name="sun"><cast_shadows>false</cast_shadows><pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse><direction>-0.3 0.2 -0.9</direction></light>
+{models}
+  </world>
+</sdf>
+"""
