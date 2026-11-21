@@ -121,8 +121,8 @@ Expected output on a 2-CPU machine, synthetic 320×240 @ 15 Hz (`expected_output
 
 | front-end | fps | ATE VO | ATE SLAM | loops |
 | --------- | --- | ------ | -------- | ----- |
-| ORB       | ~80 | 7.1 cm | 4.9 cm   | 2     |
-| SIFT      | ~50 | 2.6 cm | 1.8 cm   | 2     |
+| ORB       | ~80 | 9.4 cm | 4.8 cm   | 2     |
+| SIFT      | ~50 | 2.8 cm | 1.7 cm   | 2     |
 
 ## End-to-end deep SLAM (DPVO) as a reference
 
@@ -143,7 +143,7 @@ python demo.py --imagedir=$HOME/datasets/rgbd_dataset_freiburg1_xyz/rgb --calib=
 conda deactivate
 ```
 
-DPVO stamps its trajectory with frame *indices* (image t × stride), not dataset times. Both tools below detect that and map the indices through the sequence's `rgb.txt`:
+DPVO stamps its trajectory with frame _indices_ (image t × stride), not dataset times. Both tools below detect that and map the indices through the sequence's `rgb.txt`:
 
 ```shell
 # score it: monocular, so align with scale (Sim(3))

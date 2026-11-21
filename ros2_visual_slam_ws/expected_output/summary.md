@@ -7,9 +7,9 @@ Configuration = `features[+matcher][@place_recognition]` (defaults: brute-force 
 
 | configuration        | device | fps                                                                                                                           | real-time? | extract ms | match ms | PnP ms | loop+PGO ms | ATE VO cm | ATE SLAM cm | RPE cm/s | KFs | loops | lost |
 | -------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- | -------- | ------ | ----------- | --------- | ----------- | -------- | --- | ----- | ---- |
-| orb                  | cpu    | 82.4                                                                                                                          | yes        | 3.1        | 6.7      | 1.0    | 0.3         | 7.1       | 4.9         | 4.0      | 37  | 2     | 0    |
-| sift                 | cpu    | 49.5                                                                                                                          | yes        | 15.5       | 2.9      | 1.0    | 0.2         | 2.6       | 1.8         | 1.6      | 36  | 2     | 0    |
-| orb@thumbnail        | cpu    | 82.6                                                                                                                          | yes        | 3.3        | 6.9      | 1.1    | 0.2         | 7.2       | 4.7         | 4.0      | 37  | 1     | 0    |
+| orb                  | cpu    | 77.3                                                                                                                          | yes        | 3.0        | 7.1      | 1.5    | 0.3         | 9.4       | 4.8         | 3.5      | 37  | 2     | 0    |
+| sift                 | cpu    | 60.6                                                                                                                          | yes        | 12.3       | 2.4      | 1.1    | 0.2         | 2.8       | 1.7         | 1.6      | 36  | 2     | 0    |
+| orb@thumbnail        | cpu    | 82.6                                                                                                                          | yes        | 3.0        | 6.9      | 1.5    | 0.3         | 10.2      | 4.7         | 3.5      | 37  | 2     | 0    |
 | akaze                | —      | skipped: cv2.AKAZE_create is not available in OpenCV 5.0.0                                                                    |            |            |          |        |             |           |             |          |     |       |      |
 | superpoint           | —      | skipped: 'torch' is not installed: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu (CPU build) |            |            |          |        |             |           |             |          |     |       |      |
 | superpoint+lightglue | —      | skipped: 'torch' is not installed: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu (CPU build) |            |            |          |        |             |           |             |          |     |       |      |
@@ -24,6 +24,6 @@ Ground truth: same place = true poses within 1 m and 30°. Recall@1 counts queri
 
 | configuration | queries | with a true revisit | recall@1 | loops accepted | false loops | ms / query |
 | ------------- | ------- | ------------------- | -------- | -------------- | ----------- | ---------- |
-| orb           | 33      | 2                   | 1.00     | 2              | 0           | 1.5        |
-| sift          | 32      | 2                   | 1.00     | 2              | 0           | 0.6        |
-| orb@thumbnail | 35      | 4                   | 0.25     | 1              | 0           | 0.2        |
+| orb           | 33      | 2                   | 1.00     | 2              | 0           | 2.0        |
+| sift          | 32      | 2                   | 1.00     | 2              | 0           | 0.4        |
+| orb@thumbnail | 35      | 4                   | 0.50     | 2              | 0           | 0.6        |
