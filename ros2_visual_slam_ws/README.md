@@ -59,7 +59,7 @@ Deep-learning components (optional; the classical pipeline never imports PyTorch
 ```shell
 # user site-packages, so ROS's /usr/bin/python3 sees them; numpy<2 keeps cv_bridge working
 pip install --user --break-system-packages "numpy<2" \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu      # GPU VM: use the CUDA index instead
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu      # GPU VM: drop --index-url (PyPI's Linux wheels ship CUDA)
 pip install --user --break-system-packages "numpy<2" "transformers>=4.45" \
     git+https://github.com/cvg/LightGlue.git
 
@@ -126,21 +126,39 @@ Expected output on a 2-CPU machine, synthetic 320×240 @ 15 Hz (`expected_output
 
 ## End-to-end deep SLAM (DPVO) as a reference
 
-DPVO (Teed, Lipson, Deng, NeurIPS 2023) is a whole visual-odometry system learned end to end. It needs an NVIDIA GPU with CUDA and compiled extensions, so it runs **offline**, outside ROS, following its own README (https://github.com/princeton-vl/DPVO): conda environment, `pip install .`, `./download_models_and_data.sh`, then `demo.py --imagedir=<sequence>/rgb --calib=<file> --stride=1 --save_trajectory` (calibration format as in the repo's `calib/*.txt`; TUM fr1 intrinsics are 517.3 516.5 318.6 255.3). Only the resulting TUM-format trajectory file comes back to the lab VM:
+DPVO (Teed, Lipson, Deng, NeurIPS 2023) is a whole visual-odometry system learned end to end. It needs an NVIDIA GPU with CUDA and compiles CUDA extensions, so it runs **offline, outside ROS**, in its own conda environment (follow https://github.com/princeton-vl/DPVO if a step differs):
 
 ```shell
-# score it: monocular, so align with scale; if it is stamped with frame indices, map them to rgb.txt
+nvidia-smi                                          # a GPU and a driver must be visible
+git clone https://github.com/princeton-vl/DPVO.git --recursive && cd DPVO
+conda env create -f environment.yml && conda activate dpvo
+wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip && unzip eigen-3.4.0.zip -d thirdparty
+pip install .
+./download_models_and_data.sh                       # network weights (+ sample data, ~2 GB)
+
+# TUM fr1 calibration: fx fy cx cy k1 k2 p1 p2 k3 (DPVO undistorts with OpenCV)
+echo "517.3 516.5 318.6 255.3 0.2624 -0.9531 -0.0054 0.0026 1.1633" > calib/tum_fr1.txt
+python demo.py --imagedir=$HOME/datasets/rgbd_dataset_freiburg1_xyz/rgb --calib=calib/tum_fr1.txt \
+    --stride=2 --name=fr1_xyz --save_trajectory     # -> saved_trajectories/fr1_xyz.txt
+conda deactivate
+```
+
+DPVO stamps its trajectory with frame *indices* (image t × stride), not dataset times. Both tools below detect that and map the indices through the sequence's `rgb.txt`:
+
+```shell
+# score it: monocular, so align with scale (Sim(3))
 ros2 run visual_slam vslam_score --gt ~/datasets/rgbd_dataset_freiburg1_xyz --sim3 \
-    --est ~/dpvo_fr1_xyz.txt --frame-stamps ~/datasets/rgbd_dataset_freiburg1_xyz/rgb.txt
+    --est ~/DPVO/saved_trajectories/fr1_xyz.txt \
+    --frame-stamps ~/datasets/rgbd_dataset_freiburg1_xyz/rgb.txt --stride 2
 # ours on the same sequence (the benchmark writes dataset-stamped TUM files)
 ros2 run visual_slam vslam_score --gt ~/datasets/rgbd_dataset_freiburg1_xyz --est ~/vslam_bench_tum/estimate_orb.tum
 
 # show it in RViz next to ours (orange path), on the same sequence
-ros2 launch visual_slam vslam.launch.py source:=tum path:=~/datasets/rgbd_dataset_freiburg1_xyz \
-    dl_trajectory:=~/dpvo_fr1_xyz.txt
+ros2 launch visual_slam vslam.launch.py source:=tum path:=$HOME/datasets/rgbd_dataset_freiburg1_xyz \
+    dl_trajectory:=$HOME/DPVO/saved_trajectories/fr1_xyz.txt dl_stride:=2
 ```
 
-`--frame-stamps` is only for files stamped with frame indices. The live node's own TUM files carry ROS clock stamps, not dataset times, so score ours from the benchmark's files instead.
+The live node's own TUM files carry ROS clock stamps, not dataset times, so score ours from the benchmark's files. No GPU on the lab VM? Run DPVO on any GPU machine and copy `fr1_xyz.txt` over; scoring and the RViz overlay run on the CPU.
 
 ## Comparing against a reference SLAM (RTAB-Map)
 

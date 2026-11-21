@@ -75,6 +75,32 @@ class Trajectory:
         return out
 
 
+class FrameIndexStamps:
+    """
+    Maps a trajectory stamped with frame *indices* to dataset times. DPVO's demo does this:
+    its stamp t is the t-th image of the sorted, strided image list (image t * stride).
+    """
+
+    def __init__(self, rgb_list: str | Path, stride: int = 1) -> None:
+        rows = [ln.split() for ln in Path(rgb_list).expanduser().read_text(encoding="utf-8").splitlines()
+                if ln.strip() and not ln.startswith("#")]
+        self.stamps = np.array([float(r[0]) for r in rows])
+        self.stride = stride
+
+    @staticmethod
+    def looks_like_indices(traj: Trajectory) -> bool:
+        """Dataset stamps are Unix times (~1e9); indices are small integers."""
+        return bool(len(traj)) and max(traj.stamps) < 1e6 and all(float(s).is_integer() for s in traj.stamps)
+
+    def apply(self, traj: Trajectory) -> Trajectory:
+        out = Trajectory.empty()
+        for s, p in zip(traj.stamps, traj.poses):
+            k = int(round(s)) * self.stride
+            if 0 <= k < len(self.stamps):
+                out.add(float(self.stamps[k]), p)
+        return out
+
+
 @dataclass(frozen=True, slots=True)
 class TrajectoryReport:
     pairs: int

@@ -57,6 +57,8 @@ class VslamLaunchBuilder:
             DeclareLaunchArgument("depth_model_id", default_value="", description="Hugging Face id (default: "
                                   "Depth-Anything-V2-Metric-Indoor-Small)"),
             DeclareLaunchArgument("device", default_value="cpu", choices=["cpu", "cuda"]),
+            DeclareLaunchArgument("max_features", default_value="1000"),
+            DeclareLaunchArgument("dl_stride", default_value="2", description="--stride of the DPVO run (index-stamped files)"),
             DeclareLaunchArgument("dl_trajectory", default_value="",
                                   description="TUM file from DPVO / DROID-SLAM to overlay (needs source:=tum)"),
             DeclareLaunchArgument("loop_closure", default_value="true"),
@@ -82,6 +84,7 @@ class VslamLaunchBuilder:
                 "feature_type": self._arg(ctx, "feature_type"),
                 "matcher": self._arg(ctx, "matcher"),
                 "place_recognition": self._arg(ctx, "place_recognition"),
+                "max_features": int(self._arg(ctx, "max_features")),
                 "device": self._arg(ctx, "device"),
                 "loop_closure": self._arg(ctx, "loop_closure").lower() == "true",
                 "publish_tf": self._arg(ctx, "publish_tf").lower() == "true",
@@ -116,7 +119,8 @@ class VslamLaunchBuilder:
     def _overlay(self, ctx: LaunchContext, common: dict) -> Node:
         return Node(package=self.PKG, executable="trajectory_overlay_node", output="screen", parameters=[common | {
             "trajectory_file": str(Path(self._arg(ctx, "dl_trajectory")).expanduser()),
-            "sequence_path": str(Path(self._arg(ctx, "path")).expanduser()), "label": "dl_slam", "sim3": True}])
+            "sequence_path": str(Path(self._arg(ctx, "path")).expanduser()), "label": "dl_slam", "sim3": True,
+            "stride": int(self._arg(ctx, "dl_stride"))}])
 
     def _gazebo(self) -> list[Action]:
         world = GazeboWorldWriter().write(Path(tempfile.gettempdir()) / "vslam_gazebo")
