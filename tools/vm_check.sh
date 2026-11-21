@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# Lab-machine performance check
+# Lab-machine performance check for the AIMLCZG528 webinars (W1-W4).
 #
 #   bash tools/vm_check.sh            # everything: build, tests, all benchmarks, deep-learning models
 #   bash tools/vm_check.sh --no-dl    # skip the PyTorch install and the deep-learning checks
 #   bash tools/vm_check.sh --no-tum   # skip the TUM download (~0.5 GB) and the real-data runs
+#   bash tools/vm_check.sh --clean    # delete build/ install/ log/ first (needed after moving the repo)
 #
 # Run it in a fresh terminal, outside conda. Everything goes to ~/vm_check/ and
 # ~/vm_check.tar.gz; report.md is the one-page summary to send back.
 
 set -o pipefail
-DL=1; TUM=1
+DL=1; TUM=1; CLEAN=0
 for a in "$@"; do
   case "$a" in
     --no-dl) DL=0 ;;
     --no-tum) TUM=0 ;;
+    --clean) CLEAN=1 ;;
     *) echo "unknown option $a"; exit 2 ;;
   esac
 done
@@ -21,7 +23,7 @@ done
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$HOME/vm_check"
 REPORT="$OUT/report.md"
-DATA="$HOME/workspace/datasets"
+DATA="$HOME/datasets"
 mkdir -p "$OUT" "$DATA"
 : > "$REPORT"
 
@@ -78,6 +80,7 @@ python3 -c "import scipy, matplotlib, cv2" 2> /dev/null \
 
 build() {  # build <workspace>: colcon build + test, then source it
   local ws="$REPO/$1"
+  [ $CLEAN -eq 1 ] && rm -rf "$ws/build" "$ws/install" "$ws/log"
   run "build_$1" bash -c "cd '$ws' && colcon build --symlink-install" || return 1
   run "test_$1" bash -c "cd '$ws' && colcon test --event-handlers console_direct+ && colcon test-result --verbose"
   source "$ws/install/setup.bash"

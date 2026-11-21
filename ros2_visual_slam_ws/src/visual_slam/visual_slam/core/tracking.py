@@ -32,7 +32,14 @@ class PnpResult:
 
 
 class PnpSolver:
-    """3-D/2-D pose estimation with RANSAC + Levenberg-Marquardt refinement."""
+    """
+    3-D/2-D pose estimation: RANSAC with a minimal solver (EPnP), Levenberg-Marquardt refinement on the
+    inliers, then a re-count of inliers under the refined pose.
+
+    The RANSAC stage deliberately does *not* use the motion prior (`useExtrinsicGuess`): how OpenCV
+    treats that flag inside RANSAC differs between versions (4.6 vs 5.x gave different trajectories on
+    the same frames). The prior is only scored as one extra hypothesis, which is version-independent.
+    """
 
     def __init__(self, camera: PinholeCamera, reproj_error_px: float = 3.0, iterations: int = 200,
                  min_inliers: int = 20) -> None:
@@ -42,21 +49,35 @@ class PnpSolver:
         self.min_inliers = min_inliers
 
     def solve(self, pts3d: FloatArray, pts2d: FloatArray, guess: SE3 | None = None) -> PnpResult:
+        fail = PnpResult(SE3.identity(), np.zeros(0, dtype=np.intp), False)
         if pts3d.shape[0] < max(self.min_inliers, 6):
-            return PnpResult(SE3.identity(), np.zeros(0, dtype=np.intp), False)
-        use_guess = guess is not None
-        rvec0 = guess.rvec().reshape(3, 1).copy() if guess else np.zeros((3, 1))
-        tvec0 = guess.translation.reshape(3, 1).copy() if guess else np.zeros((3, 1))
+            return fail
+        p3, p2 = np.ascontiguousarray(pts3d, np.float64), np.ascontiguousarray(pts2d, np.float64)
         ok, rvec, tvec, inl = cv2.solvePnPRansac(
-            pts3d.astype(np.float64), pts2d.astype(np.float64), self.camera.k, None,
-            rvec=rvec0, tvec=tvec0, useExtrinsicGuess=use_guess, iterationsCount=self.iterations,
-            reprojectionError=self.reproj_error_px, confidence=0.999, flags=cv2.SOLVEPNP_ITERATIVE,
-        )
-        if not ok or inl is None or len(inl) < self.min_inliers:
-            return PnpResult(SE3.identity(), np.zeros(0, dtype=np.intp), False)
-        inl = inl.ravel()
-        rvec, tvec = cv2.solvePnPRefineLM(pts3d[inl], pts2d[inl], self.camera.k, None, rvec, tvec)
-        return PnpResult(SE3.from_rvec_tvec(rvec, tvec), inl.astype(np.intp), True)
+            p3, p2, self.camera.k, None, iterationsCount=self.iterations,
+            reprojectionError=self.reproj_error_px, confidence=0.999, flags=cv2.SOLVEPNP_EPNP)
+        candidates = [(rvec, tvec)] if ok and inl is not None and len(inl) >= 6 else []
+        if guess is not None:
+            candidates.append((guess.rvec().reshape(3, 1).astype(np.float64),
+                               guess.translation.reshape(3, 1).astype(np.float64)))
+        best: tuple[int, np.ndarray, np.ndarray, np.ndarray] | None = None
+        for rv, tv in candidates:
+            inliers = self._inliers(p3, p2, rv, tv)
+            if len(inliers) < 6:
+                continue
+            rv, tv = cv2.solvePnPRefineLM(p3[inliers], p2[inliers], self.camera.k, None, rv.copy(), tv.copy())
+            inliers = self._inliers(p3, p2, rv, tv)  # re-count under the refined pose
+            if best is None or len(inliers) > best[0]:
+                best = (len(inliers), rv, tv, inliers)
+        if best is None or best[0] < self.min_inliers:
+            return fail
+        return PnpResult(SE3.from_rvec_tvec(best[1], best[2]), best[3].astype(np.intp), True)
+
+    def _inliers(self, p3: FloatArray, p2: FloatArray, rvec: np.ndarray, tvec: np.ndarray) -> NDArray[np.intp]:
+        proj, _ = cv2.projectPoints(p3, rvec, tvec, self.camera.k, None)
+        in_front = (p3 @ cv2.Rodrigues(rvec)[0].T + tvec.ravel())[:, 2] > 0
+        err = np.linalg.norm(proj.reshape(-1, 2) - p2, axis=1)
+        return np.flatnonzero(in_front & (err < self.reproj_error_px))
 
 
 @dataclass(slots=True)
