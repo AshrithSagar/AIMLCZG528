@@ -3,6 +3,8 @@ Sensor (measurement) modelling for 2-D range finders.
 
 * BeamRangeFinderModel      Probabilistic Robotics Table 6.1 (4-component mixture)
 * LikelihoodFieldModel      Probabilistic Robotics Table 6.3 (end-point model)
+* CorrelationModel          Probabilistic Robotics §6.5 (map matching)
+* FeatureBasedModel         Probabilistic Robotics §6.6 (line features + data association)
 
 Both evaluate log p(z | x, m) for many candidate poses x at once (the
 "inverse" use inside a filter); the beam model can also *sample* scans
@@ -21,8 +23,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .geometry import FloatArray, Pose2D
-from .world import GridMap, RayCaster
+from .features import LineExtractor, LineExtractorParams, LineMap
+from .geometry import Angle, FloatArray, Pose2D
+from .world import GridMap, RayCaster, WorldSpec
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,9 +208,13 @@ class LikelihoodFieldModel(RangeSensorModel):
         ex = sensor_poses[:, 0:1] + r[None, :] * np.cos(heading)
         ey = sensor_poses[:, 1:2] + r[None, :] * np.sin(heading)
         d = self.grid.distance_to_nearest(ex, ey, cap=p.max_dist)
-        p_hit = np.exp(-0.5 * (d / p.sigma_hit) ** 2) / (p.sigma_hit * math.sqrt(2 * math.pi))
-        q = p.z_hit * p_hit + p.z_rand / self.range_max
-        return np.sum(np.log(q), axis=1)
+        return np.sum(np.log(self.endpoint_density(d)), axis=1)
+
+    def endpoint_density(self, d: FloatArray) -> FloatArray:
+        """p(z | x, m) of one endpoint at distance d from the nearest obstacle: z_hit N(d; 0, σ) + z_rand / z_max."""
+        p = self.params
+        p_hit = np.exp(-0.5 * (np.asarray(d) / p.sigma_hit) ** 2) / (p.sigma_hit * math.sqrt(2 * math.pi))
+        return p.z_hit * p_hit + p.z_rand / self.range_max
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,19 +263,74 @@ class CorrelationModel(RangeSensorModel):
         return np.log(np.maximum(rho, self.EPS))
 
 
+@dataclass(frozen=True, slots=True)
+class FeatureModelParams:
+    sigma_rho: float = 0.10  # m
+    sigma_alpha: float = math.radians(5.0)
+    gate: float = 5.99  # chi-square, 2 dof, 95 %: farther correspondences are rejected
+    extractor: LineExtractorParams = LineExtractorParams()
+
+
+class FeatureBasedModel(RangeSensorModel):
+    """
+    Feature-based model: extract line features from the scan once, then for each pose
+    predict the map's lines in the sensor frame, associate each observed line with the
+    closest prediction (Mahalanobis distance d² on (rho, alpha), gated), and score
+
+        p(z | x, m) ∝ Π_i exp(-d_i² / 2)        (rejected features get the gate's value)
+    """
+
+    def __init__(self, grid: GridMap, world: WorldSpec, params: FeatureModelParams, range_max: float,
+                 mount: Pose2D | None = None) -> None:
+        super().__init__(grid, max_beams=1_000_000, mount=mount)  # extraction wants every beam
+        self.params = params
+        self.range_max = range_max
+        self.line_map = LineMap.from_world(world)
+        self.extractor = LineExtractor(params.extractor)
+
+    @property
+    def name(self) -> str:
+        return "feature"
+
+    def observed_features(self, scan: Scan) -> list:  # noqa: ANN401 - list[LineFeature]
+        valid = scan.ranges < scan.range_max - 1e-3
+        r, a = scan.ranges[valid], scan.angles[valid]
+        return self.extractor.extract(np.column_stack((r * np.cos(a), r * np.sin(a))))
+
+    def mahalanobis(self, rho: float, alpha: float, poses: FloatArray) -> FloatArray:
+        """d² from one observed line to every map line predicted at each pose: (N, M)."""
+        p = self.params
+        rho_hat, alpha_hat = self.line_map.in_sensor_frame(poses)
+        return ((rho - rho_hat) / p.sigma_rho) ** 2 + (Angle.wrap_array(alpha - alpha_hat) / p.sigma_alpha) ** 2
+
+    def _log_likelihood(self, scan: Scan, sensor_poses: FloatArray) -> FloatArray:
+        out = np.zeros(len(sensor_poses))
+        for f in self.observed_features(scan):
+            d2 = self.mahalanobis(f.rho, f.alpha, sensor_poses).min(axis=1)  # best correspondence per pose
+            out += -0.5 * np.minimum(d2, self.params.gate)
+        return out
+
+
 class RangeSensorModelFactory:
     """Builds a model from Nav2's `laser_model_type` string (Open/Closed: register new models here)."""
 
-    @staticmethod
-    def create(kind: str, grid: GridMap, beam: BeamModelParams, lf: LikelihoodFieldParams,
-               range_max: float, max_beams: int = 60, mount: Pose2D | None = None) -> RangeSensorModel:
+    KINDS = ("beam", "likelihood_field", "correlation", "feature")
+
+    @classmethod
+    def create(cls, kind: str, grid: GridMap, beam: BeamModelParams, lf: LikelihoodFieldParams,
+               range_max: float, max_beams: int = 60, mount: Pose2D | None = None,
+               world: WorldSpec | None = None) -> RangeSensorModel:
         if kind == "beam":
             return BeamRangeFinderModel(grid, beam, range_max, max_beams, mount)
         if kind == "likelihood_field":
             return LikelihoodFieldModel(grid, lf, range_max, max_beams, mount)
         if kind == "correlation":
             return CorrelationModel(grid, CorrelationParams(), range_max, max_beams, mount)
-        raise ValueError(f"unknown sensor model '{kind}' (expected 'beam', 'likelihood_field' or 'correlation')")
+        if kind == "feature":
+            if world is None:
+                raise ValueError("the feature model needs the world (its feature map)")
+            return FeatureBasedModel(grid, world, FeatureModelParams(), range_max, mount)
+        raise ValueError(f"unknown sensor model '{kind}' (expected one of {cls.KINDS})")
 
 
 class _Erf:

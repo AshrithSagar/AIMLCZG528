@@ -8,20 +8,26 @@
     "beam": {
       "peak_error_m": 6.280369834735101e-16,
       "sharpness_m": 0.03473789419072061,
-      "compute_ms": 576.8646579999768,
-      "us_per_pose": 343.16755383698796
+      "compute_ms": 687.4405219999744,
+      "us_per_pose": 408.9473658536433
     },
     "likelihood_field": {
       "peak_error_m": 0.05590169943749419,
       "sharpness_m": 0.07806889532837787,
-      "compute_ms": 2.4604189999877235,
-      "us_per_pose": 1.4636638905340413
+      "compute_ms": 3.02755799998522,
+      "us_per_pose": 1.8010458060590242
     },
     "correlation": {
       "peak_error_m": 0.025000000000000466,
       "sharpness_m": 0.32388553995276204,
-      "compute_ms": 19.264028999998573,
-      "us_per_pose": 11.4598625817957
+      "compute_ms": 12.634550000029776,
+      "us_per_pose": 7.516091612153347
+    },
+    "feature": {
+      "peak_error_m": 0.07499999999999962,
+      "sharpness_m": 0.13285203318760783,
+      "compute_ms": 158.78831500003798,
+      "us_per_pose": 94.46062760264009
     }
   },
   "04_lidar_vs_lds01": {
@@ -97,6 +103,20 @@
     "\u03b1 = 0.2  (Nav2 default)": {
       "mean_nees": 0.11195541351753846,
       "coverage_95": 1.0
+    }
+  },
+  "08_four_models_cs3": {
+    "case_A": {
+      "beam": 6.7659238519173,
+      "likelihood_field": 9.902179925974329,
+      "correlation": 0.3333333333333333,
+      "feature": 0.6026439230868864
+    },
+    "case_B": {
+      "beam": 0.0420204473229167,
+      "likelihood_field": 0.014781047013769812,
+      "correlation": 0.0,
+      "feature": 0.45234431270388026
     }
   }
 }

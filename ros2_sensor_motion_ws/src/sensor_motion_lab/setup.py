@@ -12,6 +12,7 @@ NODES = {
     "sensor_model_node": "sensor_model_node:SensorModelNode",
     "trajectory_evaluator_node": "trajectory_evaluator_node:TrajectoryEvaluatorNode",
     "obstacle_avoidance_node": "obstacle_avoidance_node:ObstacleAvoidanceNode",
+    "model_comparison_node": "model_comparison_node:ModelComparisonNode",
 }
 
 setup(
@@ -35,7 +36,7 @@ setup(
         "console_scripts": [
             # Each node class exposes a `main` classmethod (no free-floating functions).
             *(f"{exe} = {package_name}.ros.{mod_cls}.main" for exe, mod_cls in NODES.items()),
-            f"offline_benchmark = {package_name}.offline_benchmark:main",
+            f"offline_benchmark = {package_name}.offline_benchmark:OfflineBenchmarkApp.main",
         ],
     },
 )

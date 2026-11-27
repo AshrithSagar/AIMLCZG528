@@ -14,6 +14,7 @@ Every `eval_period` seconds, at the ground-truth pose matching the scan time:
       peak error / sharpness / compute time  ->  /diagnostics
 
   model := beam | likelihood_field   (Nav2 AMCL's two `laser_model_type`s)
+         | correlation | feature     (map matching; line features + data association)
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ class SensorModelNode(LabNode):
                                    self.param("laser_likelihood_max_dist", 2.0))
         self.model = RangeSensorModelFactory.create(
             self.param("model", "likelihood_field"), self.grid, beam, lf, li.range_max,
-            self.param("max_beams", 60),
+            self.param("max_beams", 60), world=self.world,
         )
         self.generator = BeamRangeFinderModel(self.grid, BeamModelParams.realistic_lidar(), li.range_max)
         self.analyzer = RangeErrorAnalyzer(LidarSpec.lds01())

@@ -10,7 +10,7 @@ measured evaluation metric and is compared against a standard reference.
 | Simulator                    | Real-Time Factor (RTF)                                  | RTF = 1.0                                                                   |
 | Visualisation / TF           | TF tree shape, TF delay (`tf2_monitor`)                 | REP-105 (`map → odom → base_link`)                                          |
 | Sensor model                 | range bias, RMSE, % within spec, outliers               | ROBOTIS LDS-01 datasheet                                                    |
-| Sensor model (map matching)  | likelihood peak error, sharpness, µs/pose               | Nav2 AMCL `beam` vs `likelihood_field` (default params), plus `correlation` |
+| Sensor model (map matching)  | likelihood peak error, sharpness, µs/pose               | Nav2 AMCL `beam` vs `likelihood_field` (default params), plus `correlation` and `feature` |
 | Motion model (odometry)      | UMBmark E<sub>max,syst</sub>; ATE / RPE / drift %       | UMBmark (Borenstein & Feng 1996); TUM ATE/RPE (`evo`)                       |
 | Motion model (probabilistic) | NEES, 95 % coverage                                     | Nav2 AMCL `alpha1..4 = 0.2`                                                 |
 
@@ -26,12 +26,12 @@ ros2_sensor_motion_ws/
     │   ├── rviz/display.rviz
     │   └── launch/display.launch.py
     └── sensor_motion_lab/           # ament_python: code
-        ├── sensor_motion_lab/core/  #   ROS-free: geometry, world, motion, sensing, metrics, simulation
+        ├── sensor_motion_lab/core/  #   ROS-free: geometry, world, motion, sensing, features, comparison, metrics, simulation
         ├── sensor_motion_lab/ros/   #   thin rclpy nodes on top of core/
         ├── sensor_motion_lab/launch_builder.py
         ├── sensor_motion_lab/offline_benchmark.py
-        ├── launch/{sim,obstacle_avoidance,motion_model,sensor_model}.launch.py
-        ├── rviz/lab.rviz
+        ├── launch/{sim,obstacle_avoidance,motion_model,sensor_model,model_comparison}.launch.py
+        ├── rviz/{lab,comparison}.rviz
         └── test/test_core.py
 ```
 
@@ -70,6 +70,11 @@ ros2 launch sensor_motion_lab obstacle_avoidance.launch.py duration:=60.0
 ros2 launch sensor_motion_lab sensor_model.launch.py model:=likelihood_field
 ros2 launch sensor_motion_lab sensor_model.launch.py model:=beam
 ros2 launch sensor_motion_lab sensor_model.launch.py model:=correlation
+ros2 launch sensor_motion_lab sensor_model.launch.py model:=feature      # line features + data association
+
+# 3b. CS-3 worked example: the four models on the same three returns (no simulator)
+ros2 launch sensor_motion_lab model_comparison.launch.py                # Case A: clear aisle
+ros2 param set /model_comparison_node case B                            # Case B: a person blocks the centre beam
 
 # 4. Motion model + UMBmark
 ros2 launch sensor_motion_lab motion_model.launch.py
@@ -98,6 +103,7 @@ with the wrong track width.
 | `/scan`                                                 | `sensor_msgs/LaserScan`           | kinematic sim / Gazebo gpu_lidar                           |
 | `/map`, `/likelihood_field`, TF `map→odom`              | `nav_msgs/OccupancyGrid`          | `world_map_node`                                           |
 | `/sensor_model/{expected_scan,sampled_scan,likelihood}` |                                   | `sensor_model_node`                                        |
+| `/comparison/{scan,markers}`                            | `LaserScan`, `MarkerArray`        | `model_comparison_node` (CS-3 example)                     |
 | `/motion_model/{particles,mean_path}`                   |                                   | `motion_model_node`                                        |
 | `/ground_truth/path`, `/odom_path`                      | `nav_msgs/Path`                   | `trajectory_evaluator_node`                                |
 | `/diagnostics`                                          | `diagnostic_msgs/DiagnosticArray` | all lab nodes                                              |

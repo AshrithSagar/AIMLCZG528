@@ -27,7 +27,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
-from matplotlib.patches import Ellipse  # noqa: E402
+from matplotlib.patches import Circle, Ellipse, Rectangle  # noqa: E402
 
 from .core import (  # noqa: E402
     ArcIntegrator,
@@ -63,6 +63,7 @@ from .core import (  # noqa: E402
     VelocityMotionModel,
     WorldSpec,
 )
+from .core.comparison import AisleScenario, FourModelComparison  # noqa: E402
 from .core.config import RobotConfig  # noqa: E402
 
 Metrics = dict[str, Any]
@@ -173,7 +174,7 @@ class BeamPdfExperiment(Experiment):
 
 
 class LikelihoodSurfaceExperiment(Experiment):
-    slug, title = "03_likelihood_surfaces", "Map matching: beam vs. likelihood-field (Nav2 AMCL defaults) vs. correlation"
+    slug, title = "03_likelihood_surfaces", "Map matching with the four measurement models (beam / likelihood field: Nav2 AMCL defaults)"
 
     def run(self) -> tuple[Figure, Metrics]:
         ctx, li = self.ctx, self.ctx.robot.lidar
@@ -187,10 +188,10 @@ class LikelihoodSurfaceExperiment(Experiment):
         cand = np.column_stack((gx.ravel(), gy.ravel(), np.full(gx.size, true.theta)))
         models = tuple(
             RangeSensorModelFactory.create(kind, ctx.grid, BeamModelParams.nav2_amcl_defaults(),
-                                           LikelihoodFieldParams.nav2_amcl_defaults(), li.range_max, 60)
-            for kind in ("beam", "likelihood_field", "correlation")
+                                           LikelihoodFieldParams.nav2_amcl_defaults(), li.range_max, 60, world=ctx.world)
+            for kind in RangeSensorModelFactory.KINDS
         )
-        fig, axes = plt.subplots(1, 4, figsize=(21, 5))
+        fig, axes = plt.subplots(1, 5, figsize=(26, 5))
         df = ctx.grid.distance_field
         extent = (ctx.grid.origin_x, ctx.grid.origin_x + ctx.grid.width * ctx.grid.resolution,
                   ctx.grid.origin_y, ctx.grid.origin_y + ctx.grid.height * ctx.grid.resolution)
@@ -215,6 +216,52 @@ class LikelihoodSurfaceExperiment(Experiment):
             ax.legend(fontsize=8)
         fig.suptitle(self.title)
         return fig, metrics
+
+
+class FourModelExperiment(Experiment):
+    """The CS-3 worked example: one wall, three beams, every model; Case A clear vs Case B a person in front."""
+
+    slug, title = "08_four_models_cs3", "CS-3 example: the four measurement models on the same three returns"
+
+    def run(self) -> tuple[Figure, Metrics]:
+        clear = FourModelComparison(AisleScenario.case("A"))
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6.5))
+        metrics: Metrics = {}
+        for ax, case in zip(axes, ("A", "B")):
+            comp = FourModelComparison(AisleScenario.case(case))
+            self._draw(ax, comp, clear if case == "B" else None)
+            metrics[f"case_{case}"] = comp.scores()
+        fig.suptitle(self.title)
+        return fig, metrics
+
+    def _draw(self, ax: plt.Axes, comp: FourModelComparison, clear: FourModelComparison | None) -> None:
+        s = comp.s
+        MapPlotter.draw(ax, GridRasterizer(0.05).rasterize(s.world()), alpha=0.5)
+        cell = s.cell
+        for col in range(comp.wall_cell - 0, comp.wall_cell + 1):
+            ax.add_patch(Rectangle((col * cell, -2.0), cell, 4.0, color="0.6", alpha=0.25, lw=0))
+        for c, e in zip(comp.scan_cells(), s.endpoints):
+            ax.add_patch(Rectangle((c * cell, np.floor(e[1] / cell) * cell), cell, cell, color="tab:blue", alpha=0.5, lw=0))
+        for zs, z, a in zip(s.z_star, s.z, s.angles):
+            ax.plot([0, zs * math.cos(a)], [0, zs * math.sin(a)], color="0.5", lw=1, ls="--")
+            ax.plot([0, z * math.cos(a)], [0, z * math.sin(a)], color="tab:red", lw=2)
+        ends = s.endpoints
+        ax.scatter(ends[:, 0], ends[:, 1], c="gold", s=60, zorder=5, edgecolors="k")
+        for e in ends:
+            ax.plot([e[0], s.wall_x], [e[1], e[1]], color="m", lw=2)
+        line = comp.fitted_line()
+        ax.plot([line.p0[0], line.p1[0]], [line.p0[1], line.p1[1]], color="tab:green", lw=3, label=f"fitted wall rho = {line.rho:.3f} m")
+        if s.person_range is not None:
+            ax.add_patch(Circle((s.person_range + 0.2, 0.0), 0.2, color="tab:orange", alpha=0.8))
+            blind = comp.blind_line()
+            ax.plot([blind.p0[0], blind.p1[0]], [blind.p0[1], blind.p1[1]], color="tab:red", ls=":", lw=2,
+                    label="blind least-squares fit")
+        ax.plot(0, 0, "o", c="tab:blue", ms=8)
+        ax.set_xlim(-0.5, 6.0)
+        ax.set_ylim(-2.4, 2.4)
+        ax.legend(loc="lower left", fontsize=8)
+        ax.set_title(f"Case {s.label}\n" + "\n".join(comp.short_lines(clear)), fontsize=9, family="monospace",
+                     loc="left")
 
 
 class LidarSpecExperiment(Experiment):
@@ -417,6 +464,7 @@ class OfflineBenchmark:
         MotionBananaExperiment,
         UMBmarkExperiment,
         ConsistencyExperiment,
+        FourModelExperiment,
     )
 
     def __init__(self, ctx: BenchmarkContext, out_dir: Path) -> None:
@@ -453,15 +501,19 @@ class ConfigLocator:
             return Path(__file__).resolve().parents[2] / "mobile_bot_description" / "config"
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", default="w1_expected_output", help="output directory for figures + metrics.json")
-    ap.add_argument("--config-dir", default=None, help="folder containing world.yaml and robot.yaml")
-    ap.add_argument("--seed", type=int, default=42)
-    args = ap.parse_args()
-    ctx = BenchmarkContext.load(ConfigLocator.find(args.config_dir), args.seed)
-    OfflineBenchmark(ctx, Path(args.out).expanduser()).run()
+class OfflineBenchmarkApp:
+    """Command-line entry point (`offline_benchmark`)."""
+
+    @staticmethod
+    def main() -> None:
+        ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        ap.add_argument("--out", default="w1_expected_output", help="output directory for figures + metrics.json")
+        ap.add_argument("--config-dir", default=None, help="folder containing world.yaml and robot.yaml")
+        ap.add_argument("--seed", type=int, default=42)
+        args = ap.parse_args()
+        ctx = BenchmarkContext.load(ConfigLocator.find(args.config_dir), args.seed)
+        OfflineBenchmark(ctx, Path(args.out).expanduser()).run()
 
 
 if __name__ == "__main__":
-    main()
+    OfflineBenchmarkApp.main()

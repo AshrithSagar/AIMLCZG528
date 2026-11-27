@@ -1,0 +1,71 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid (1 m)
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 14
+      Color: 160; 160; 164
+    - Class: rviz_default_plugins/Map
+      Name: Map (aisle wall + racks)
+      Enabled: true
+      Topic:
+        Value: /map
+        Durability Policy: Transient Local
+      Color Scheme: map
+      Alpha: 0.6
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Marker Scale: 0.5
+    - Class: rviz_default_plugins/LaserScan
+      Name: Scan (3 returns)
+      Enabled: true
+      Topic:
+        Value: /comparison/scan
+        Durability Policy: Transient Local
+      Style: Spheres
+      Size (m): 0.15
+      Color Transformer: FlatColor
+      Color: 255; 230; 30
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Four models
+      Enabled: true
+      Topic:
+        Value: /comparison/markers
+        Durability Policy: Transient Local
+      Namespaces:
+        beam/expected: true
+        beam/measured: true
+        field/distance: true
+        field/endpoints: true
+        correlation/scan_cells: true
+        correlation/wall_cells: true
+        feature/fitted: true
+        feature/blind_fit: true
+        person: true
+        scores: true
+  Enabled: true
+  Global Options:
+    Fixed Frame: map
+    Background Color: 40; 40; 40
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Name: Current View
+      Scale: 80
+      X: 2.8
+      Y: 0.6

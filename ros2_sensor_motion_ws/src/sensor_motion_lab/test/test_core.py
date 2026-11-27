@@ -231,3 +231,53 @@ def test_circle_obstacles_ray_hits() -> None:
 
     r = CircleObstacles.ranges(Pose2D(0, 0, 0), np.array([0.0, math.pi / 2]), np.array([[2.0, 0.0]]), 0.25, 3.5)
     assert r[0] == pytest.approx(1.75) and math.isinf(r[1])
+
+
+# ----- CS-3 worked example: the four models on the same three returns ----------------
+def test_cs3_four_models_match_the_slide() -> None:
+    from sensor_motion_lab.core.comparison import AisleScenario, FourModelComparison
+
+    a, b = FourModelComparison(AisleScenario.case("A")), FourModelComparison(AisleScenario.case("B"))
+    sa, sb = a.scores(), b.scores()
+    beam_a, field_a = a.beam_model(), a.likelihood_field()
+    assert beam_a.kernel == pytest.approx(0.1719, abs=1e-4)  # slide: 0.4413 · 0.8825 · 0.4413
+    assert field_a.kernel == pytest.approx(0.1806, abs=1e-4)  # slide: 0.4523 · 0.8825 · 0.4523
+    assert sa["correlation"] == pytest.approx(1 / 3) and a.overlap(0.1) == pytest.approx(2 / 3)
+    assert sa["feature"] == pytest.approx(0.6026, abs=1e-4)  # rho_hat = 4.949 m
+    assert sa["beam"] == pytest.approx(6.766, abs=2e-3) and sb["beam"] == pytest.approx(0.042, abs=1e-3)
+    assert sa["likelihood_field"] == pytest.approx(9.902, abs=2e-3)
+    assert 100 * sb["beam"] / sa["beam"] == pytest.approx(0.62, abs=0.01)  # slide: 0.62 % of the clear score kept
+    assert 100 * sb["likelihood_field"] / sa["likelihood_field"] == pytest.approx(0.15, abs=0.01)
+    assert sb["correlation"] == 0.0 and b.overlap(0.1) == pytest.approx(2 / 3)
+    assert sb["feature"] == pytest.approx(0.4523, abs=1e-4)  # only with the outer pair (outlier rejected)
+
+
+def test_line_extractor_ignores_a_point_off_the_wall() -> None:
+    from sensor_motion_lab.core.features import LineExtractor, LineExtractorParams
+
+    rng = np.random.default_rng(0)
+    y = np.linspace(-1, 1, 40)
+    wall = np.column_stack((3.0 + rng.normal(0, 0.005, y.size), y))
+    pts = np.vstack((wall, [[1.5, 0.0], [1.6, 0.05]]))  # a person in front of the wall
+    line = LineExtractor(LineExtractorParams(min_points=10, max_lines=1)).extract(pts)[0]
+    assert line.rho == pytest.approx(3.0, abs=0.01) and abs(line.alpha) < 0.01 and line.support == 40
+
+
+def test_feature_model_peaks_near_the_true_pose() -> None:
+    from sensor_motion_lab.core import BeamModelParams, LikelihoodFieldParams, RangeSensorModelFactory, RayCaster, Scan
+    from sensor_motion_lab.core.config import DescriptionConfig
+    from sensor_motion_lab.core.world import GridRasterizer, WorldSpec
+
+    world = WorldSpec.from_yaml(DescriptionConfig.locate() / "world.yaml")
+    grid = GridRasterizer(0.05).rasterize(world)
+    angles = np.linspace(-math.pi, math.pi, 360, endpoint=False)
+    truth = np.array([[1.5, -1.0, 2.0]])
+    z = RayCaster(grid, 3.5).cast(truth, angles)[0] + np.random.default_rng(0).normal(0, 0.01, 360)
+    scan = Scan(np.clip(z, 0, 3.5), angles, 0.12, 3.5)
+    model = RangeSensorModelFactory.create("feature", grid, BeamModelParams(), LikelihoodFieldParams(), 3.5,
+                                           world=world)
+    offs = np.arange(-0.3, 0.31, 0.025)
+    gx, gy = np.meshgrid(truth[0, 0] + offs, truth[0, 1] + offs)
+    cand = np.column_stack((gx.ravel(), gy.ravel(), np.full(gx.size, truth[0, 2])))
+    best = cand[int(np.argmax(model.log_likelihood(scan, cand)))]
+    assert math.hypot(best[0] - truth[0, 0], best[1] - truth[0, 1]) < 0.1
